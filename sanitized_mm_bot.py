@@ -156,7 +156,7 @@ if __name__ == "__main__":
                         '-p',
                         required=True,
                         type=str,
-                        help="ID of post to get reactions from"
+                        help="ID of post from which to get reactions.  (Copy the link of the desired post, the ID is the alphanumeric string after the last forward slash)"
                         )
     parser.add_argument('--emoji', 
                         '-e',
