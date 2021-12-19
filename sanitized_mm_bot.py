@@ -89,9 +89,9 @@ def main(parser):
     4. List of Mattermost usernames,
     5. An emoji (or '*' for any emoji),
     Show which users from the list of usernames provided have reacted to the 
-    specific post with any emoji ('*'), or the specified emoji, 
-    as well as all users who have NOT posted any emoji ('*'), or in the case of 
-    a specific emoji, show those who have NOT reacted with that emoji.
+    specified post with any emoji ('*'), or the specified emoji.
+    Then, separately display all users who have NOT posted any emoji ('*'),
+    or in the case of a specific emoji, show those who have NOT reacted with that emoji.
     """                                              
     args = parser.parse_args()
     #pprint.pprint(args)
