@@ -174,8 +174,6 @@ def main(parser):
     if args.channels:
         print(args.channels)
         channels = get_channels(url, headers)
-
-        #pprint.pprint(channels)
         rows_to_keep = channels['name'].isin(args.channels)
         channels = channels[rows_to_keep]
         if channels.empty:
@@ -183,9 +181,7 @@ def main(parser):
             print("Exiting.")
             sys.exit(1)        
         filter_on_channels = True
-        #return
            
-    #pprint.pprint(args)
     if args.username_file:
         with open(args.username_file, 'r') as callsign_file:
             usernames = callsign_file.readlines()
@@ -226,8 +222,6 @@ def main(parser):
         non_posters = all_users[all_users[f"Responded with {args.emoji}?"] == "No"]
         print(f"The following {len(non_posters)} users have NOT posted the '{args.emoji}' emoji on post {args.post_id}")
         pprint.pprint(non_posters)            
-
-
 
     return all_users
 
