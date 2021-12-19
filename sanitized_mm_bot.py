@@ -75,7 +75,7 @@ def process_reactions(args, reactions, users_url, headers, all_users):
     for reaction in reactions:
         if args.emoji == "*":
             all_users.loc[all_users['id'] == reaction['user_id'], "Emoji Response(s)"] += reaction['emoji_name']+"|"
-        elif args.emoji_name == reaction['emoji_name']:
+        elif args.emoji == reaction['emoji_name']:
             all_users[all_users['id'] == reaction['user_id']][f"Responded with {args.emoji}?"] = "Yes"
 
     return all_users
@@ -84,9 +84,10 @@ def main(parser):
     """
     Provided:
     1. Mattermost server URL,
-    2. Authentication tokens, 
-    3. List of Mattermost usernames,
-    4. An emoji (or '*' for any emoji),
+    2. Team ID,
+    3. Authentication tokens, 
+    4. List of Mattermost usernames,
+    5. An emoji (or '*' for any emoji),
     Show which users from the list of usernames provided have reacted to the 
     specific post with any emoji ('*'), or the specified emoji, 
     as well as all users who have NOT posted any emoji ('*'), or in the case of 
@@ -96,9 +97,16 @@ def main(parser):
     #pprint.pprint(args)
 
     usernames = []
-    token = #TODO
-    url = # TODO
-    team_id = #TODO
+    with open(args.credential_file, 'r') as creds_file:
+        # Split on ':' in case the format is 'URL: mymattermostserver.com'
+        url =     creds_file.readline().split('=')[1].strip()
+        team_id = creds_file.readline().split('=')[1].strip()
+        token   = creds_file.readline().split('=')[1].strip()
+
+    url = url.strip('"').strip("'")
+    team_id = team_id.strip('"').strip("'")
+    token = token.strip('"').strip("'")
+
     search_url = f"{url}api/v4/teams/{team_id}/posts/search"
     headers = { 
                 "is_or_search": "true",
@@ -106,8 +114,7 @@ def main(parser):
                 "include_deleted_channels": "true",
                 "page": "0",
                 "per_page": "60",
-                # TODO Include authorization token below
-                "Authorization" : "Bearer TODO"
+                "Authorization" : f"Bearer {token}"
             }
 
     with open(args.username_file, 'r') as callsign_file:
@@ -150,7 +157,16 @@ def main(parser):
     return all_users
 
 if __name__ == "__main__":
+    valid_sort_criteria = ["nickname", "first_name", "last_name", "emoji", "username"]
+
     parser = argparse.ArgumentParser()
+
+    parser.add_argument('--credential-file', 
+                        '-c',
+                        required=True,
+                        type=str,
+                        help="File with (one per line): (1 server url, (2 team id, (3 auth token"
+                        )
 
     parser.add_argument('--post-id', 
                         '-p',
@@ -175,6 +191,6 @@ if __name__ == "__main__":
                         '-s',
                         default="username",
                         type=valid_sorter,
-                        help="Sort results by 'username' (default), 'callsign', 'first' or 'last' name"
+                        help=f"Sort results by one of {valid_sort_criteria}, 'username' is the default."
                         )           
     all_users = main(parser)        
