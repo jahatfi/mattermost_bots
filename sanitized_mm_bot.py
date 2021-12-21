@@ -130,15 +130,62 @@ def process_reactions(args, reactions, users_url, headers, all_users):
             all_users[all_users['id'] == reaction['user_id']][f"Responded with {args.emoji}?"] = "Yes"
 
     return all_users
+
+# ==============================================================================
+def dm_user(base_url, username, headers, message, team_id):
+    # Start by creating a channel
+    new_headers = {
+        "team_id": team_id,
+        "name": "string",
+        "display_name": "Autobot",
+        "purpose": "string",
+        "header": "DM Between you and autobot",
+        "type": "P"
+    }
+    resp = requests.get(base_url+"api/v4/channels/direct", headers=headers)
+# ==============================================================================
+def get_bot_info(base_url, bot_name, headers):
+    """
+    Return bot info for this bot, None if it doesn't exist
+    """
+    all_bots = requests.get(base_url+"api/v4/bots", headers=headers)
+    all_bots = json.loads(all_bots.text)
+    all_bots = pd.DataFrame(all_bots)
+    pprint.pprint(all_bots)
+
+    return all_bots[all_bots['username'] == bot_name]
+#==============================================================================
+def create_dm_channel(base_url, bot_id, user_id, header):
+    """
+    Return dm channel info between bot and user
+    """    
+    header['Content-type'] = "application/json"
+    channel_info = requests.post(base_url+"api/v4/channels/direct", 
+                                headers=header,
+                                data=json.dumps([bot_id, user_id]) )
+    channel_info = json.loads(channel_info.text)
+    return channel_info
+#==============================================================================
+def send_dm(base_url, channel_id, header, message):
+    """
+    Send dm to the provided channel
+    """    
+    header['Content-type'] = "application/json"
+    dm_info = requests.post(base_url+"api/v4/posts", 
+                                headers=header,
+                                data=json.dumps({"channel_id": channel_id, "message":message}))
+    dm_info = json.loads(dm_info.text)
+    return dm_info
 # ==============================================================================
 def main(parser):      
     """
     Provided:
     1. Mattermost server URL,
     2. Team ID,
-    3. Authentication tokens, 
-    4. File of Mattermost usernames and/or channels 
-    5. An emoji (or '*' for any emoji),
+    3. Authentication token,
+    4. bot name,  
+    5. File of Mattermost usernames and/or channels 
+    6. An emoji (or '*' for any emoji),
     Show which users from the list of usernames/channels provided have reacted 
     to the specified post with any emoji ('*'), or the specified emoji.
     Then, separately display all users who have NOT posted any emoji ('*'),
@@ -155,6 +202,8 @@ def main(parser):
         url =     creds_file.readline().split('=')[1].strip()
         team_id = creds_file.readline().split('=')[1].strip()
         token   = creds_file.readline().split('=')[1].strip()
+        bot_name = creds_file.readline().split('=')[1].strip()
+
 
     # Strip any quotes
     url = url.strip('"').strip("'")
@@ -170,6 +219,12 @@ def main(parser):
                 "per_page": str(results_per_page),
                 "Authorization" : f"Bearer {token}"
             }
+
+    # Get this bot info
+    this_bot = get_bot_info(url, bot_name, headers)
+    if not this_bot.empty:
+        this_bot
+
 
     if args.channels:
         print(args.channels)
