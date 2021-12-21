@@ -4,6 +4,7 @@ import pprint
 import argparse
 import pandas as pd
 import sys
+import concurrent.futures
 # ==============================================================================
 # Reference: https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-argparse
 def str2bool(v):
@@ -43,7 +44,7 @@ def get_channels(base_url, headers):
     all_channels = []
     channel_url = base_url+"api/v4/channels"
     
-    print(f"Retrieving info for channels, starting will all channels")
+    print(f"Retrieving info for channels, starting with all channels")
     resp = requests.get(channel_url, headers=headers)
     #print(resp.text)
     new_dict = json.loads(resp.text)
@@ -151,7 +152,7 @@ def get_bot_info(base_url, bot_name, headers):
     all_bots = requests.get(base_url+"api/v4/bots", headers=headers)
     all_bots = json.loads(all_bots.text)
     all_bots = pd.DataFrame(all_bots)
-    pprint.pprint(all_bots)
+    #pprint.pprint(all_bots)
 
     return all_bots[all_bots['username'] == bot_name]
 #==============================================================================
@@ -164,7 +165,7 @@ def create_dm_channel(base_url, bot_id, user_id, header):
                                 headers=header,
                                 data=json.dumps([bot_id, user_id]) )
     channel_info = json.loads(channel_info.text)
-    return channel_info
+    return channel_info['id']
 #==============================================================================
 def send_dm(base_url, channel_id, header, message):
     """
@@ -176,6 +177,31 @@ def send_dm(base_url, channel_id, header, message):
                                 data=json.dumps({"channel_id": channel_id, "message":message}))
     dm_info = json.loads(dm_info.text)
     return dm_info
+
+#==============================================================================
+def send_dm_to_all_in_df(user_id, user_name, base_url, bot_id, header, message, live_run):
+    """
+    Send dm to all users in the provided dataframe
+    """    
+    #user_name = row[1][1]
+    #user_id = row[1][0]    
+    if not live_run:
+        print(f"DRY RUN, send message to: {user_name} {user_id}")
+        
+    else:
+
+        print(f"LIVE RUN, send message to: {user_name} {user_id}")
+        channel_id = create_dm_channel(base_url, bot_id, user_id, header)
+        header['Content-type'] = "application/json"
+        #print("Firing post")
+        dm_info = requests.post(base_url+"api/v4/posts", 
+                                    headers=header,
+                                    data=json.dumps({"channel_id": channel_id, "message":message}))
+        #pprint.pprint(f"dm_info: {dm_info}")
+        dm_info = json.loads(dm_info.text)
+
+    #return dm_info
+    
 # ==============================================================================
 def main(parser):      
     """
@@ -219,11 +245,29 @@ def main(parser):
                 "per_page": str(results_per_page),
                 "Authorization" : f"Bearer {token}"
             }
+    # Get this team name
+    team_url = f"{url}api/v4/teams/{team_id}"
+    #print(f"team url: {team_url}")
+
+    team_info = requests.get(team_url, headers=headers)
+    if team_info.status_code == 200:
+        team_info = json.loads(team_info.text)
+        team_name = team_info["name"]
+        #print(team_name)
+        #pprint.pprint(team_info)
+    else:
+        print(f"Cannot find the team {team_id} on this server.")
+        print(team_info)
+        sys.exit(-1)
 
     # Get this bot info
     this_bot = get_bot_info(url, bot_name, headers)
     if not this_bot.empty:
-        this_bot
+        pprint.pprint(this_bot)
+        bot_id = this_bot['user_id'].values[0]
+    else:
+        print(f"It appears that the bot {bot_name} does not exist on {url}")
+        sys.exit(-1)
 
 
     if args.channels:
@@ -276,7 +320,41 @@ def main(parser):
     else:
         non_posters = all_users[all_users[f"Responded with {args.emoji}?"] == "No"]
         print(f"The following {len(non_posters)} users have NOT posted the '{args.emoji}' emoji on post {args.post_id}")
-        pprint.pprint(non_posters)            
+        pprint.pprint(non_posters)         
+
+    # Send provided DM
+    '''
+    if args.message_to_non_responders and not non_posters.empty:
+        non_posters.apply(send_dm_to_all_in_df, axis=1, args=(url, bot_id, headers, args.message_to_non_responders))
+
+    if args.message_to_responders and not posters.empty:
+        posters.apply(send_dm_to_all_in_df, axis=1, args=(url, bot_id, headers, args.message_to_responders+args.post_id))
+    '''
+
+
+    for recipients, message in [[posters, args.message_to_responders], [non_posters, args.message_to_non_responders]]:
+        if not message: 
+            continue
+
+        these_headers = [headers] * len(recipients)
+        live_flag = [args.live_run] * len(recipients)
+        base_urls = [url] * len(recipients)
+        bot_ids = [bot_id] * len(recipients)
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+
+            messages = [message + f" (Post: {url}{team_name}/pl/{args.post_id})"] * len(recipients)
+            print(f"Sending message: '{messages[0]}'")
+
+            results = executor.map(   send_dm_to_all_in_df, 
+                            recipients['id'].values,
+                            recipients['username'].values, 
+                            base_urls,
+                            bot_ids,
+                            these_headers, 
+                            messages, 
+                            live_flag
+                        )
 
     return all_users
 
@@ -317,13 +395,34 @@ if __name__ == "__main__":
                         required=False,
                         default="",
                         type=str,
-                        help="File with all mattermost usernames to report on.  If provided with a list of channels, will pull intersection users from each"
+                        help="File with all mattermost usernames to report on.  If provided with a list of channels, will pull intersection of  from each"
                         )
     parser.add_argument('--sort-on', 
                         '-s',
                         default="username",
                         type=valid_sorter,
                         help=f"Sort results by one of {valid_sort_criteria}, 'username' is the default."
-                        )           
+                        )   
+    parser.add_argument('--message-to-non-responders', 
+                        '-n',
+                        required=False,
+                        default="",
+                        type=str,
+                        help="Message to DM users who did NOT post one of the specified emojis"
+                        )  
+    parser.add_argument('--message-to-responders', 
+                        '-m',
+                        required=False,
+                        default="",
+                        type=str,
+                        help="Message to DM users who DID post one of the specified emojis"
+                        )     
+    parser.add_argument('--live-run', 
+                        '-l',
+                        required=False,
+                        default=False,
+                        type=str2bool,
+                        help="Live (True) or dry (False:default) run"
+                        )                                                                               
     all_users = main(parser)        
 
