@@ -68,12 +68,12 @@ def main(parser):
     # Post to channel with provided message
     if args.live_run:
         print(f"Posting to {args.channel}\nMessage: '{message}'")
-        """
+        
         dm_info = requests.post(url+"api/v4/posts", 
-                                headers=header,
+                                headers=headers,
                                 data=json.dumps({"channel_id": channel_id, 
                                                 "message":message}))
-        """
+        
     else:
         print("Dry run, not posting anything:")
         print(f"Would have posted to {args.channel}\nMessage: '{message}'")
