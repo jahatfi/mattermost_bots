@@ -1,6 +1,6 @@
 import argparse
-
-
+import requests
+import json
 # ==============================================================================
 # Reference: https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-argparse
 def str2bool(v):
@@ -34,3 +34,49 @@ def parse_creds_from_file(authentication_info):
         bot_name = creds_file.readline().split('=')[1].strip()
 
         return (url, team_id, token, bot_name)
+# ==============================================================================
+def rename_bot(base_url, old_bot_name, old_bot_id, new_bot_name, headers):
+    """
+    Rename bot to new name
+    """
+    payload = {}
+    payload["username"] = old_bot_name   
+    payload["display_name"] = new_bot_name
+    resp = requests.put(base_url+"api/v4/bots/"+old_bot_id, 
+                            headers=headers,
+                            data=json.dumps(payload))
+
+    
+    if resp.status_code < 200 or resp.status_code > 299:
+        print(f"Failed to rename {old_bot_name} bot to {new_bot_name}")
+        print(resp)
+        return False
+    else:
+        print(f"Renamed {old_bot_name} bot to {new_bot_name}")
+    return True
+# ==============================================================================
+def update_bot_icon(base_url, bot_name, bot_id, new_image_file, headers):
+    """
+    Update image for bot
+    """
+    if not new_image_file.endswith(".svg"):
+        print(f"Cannot update bot icon with {new_image_file}, file must be .svg")
+        return False
+
+    image_data = ""
+    with open(new_image_file, "rb") as image_file:
+        image_data = image_file.read()
+    payload = {"image": image_data}
+    resp = requests.put(base_url+"api/v4/bots/"+bot_id+'/'+"icon", 
+                        headers=headers,
+                        data=json.dumps(payload))
+
+    
+    if resp.status_code < 200 or resp.status_code > 299:
+        print(f"Failed to update icon {old_bot_name} bot to {new_bot_name}")
+        print(resp)    
+        return False
+    else:
+        print(f"Updated image for {bot_name} to {new_image_file}")
+
+    return True

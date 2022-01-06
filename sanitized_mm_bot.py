@@ -5,6 +5,7 @@ import argparse
 import pandas as pd
 import sys
 import concurrent.futures
+from utils import *
 # ==============================================================================
 # Reference: https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-argparse
 def str2bool(v):
@@ -152,7 +153,7 @@ def get_bot_info(base_url, bot_name, headers):
     all_bots = requests.get(base_url+"api/v4/bots", headers=headers)
     all_bots = json.loads(all_bots.text)
     all_bots = pd.DataFrame(all_bots)
-    #pprint.pprint(all_bots)
+    pprint.pprint(all_bots)
 
     return all_bots[all_bots['username'] == bot_name]
 #==============================================================================
@@ -186,12 +187,12 @@ def send_dm_to_all_in_df(user_id, user_name, base_url, bot_id, header, message, 
     #user_name = row[1][1]
     #user_id = row[1][0]    
     if not live_run:
-        print(f"DRY RUN, send message to: {user_name} {user_id}")
+        print(f"DRY RUN, send message to: {user_name:<20} User ID: {user_id}")
         
     else:
 
         print(f"LIVE RUN, send message to: {user_name} {user_id}")
-        channel_id = create_dm_channel(base_url, bot_id, user_id, header)
+        #channel_id = create_dm_channel(base_url, bot_id, user_id, header)
         header['Content-type'] = "application/json"
         #print("Firing post")
         dm_info = requests.post(base_url+"api/v4/posts", 
@@ -223,13 +224,9 @@ def main(parser):
     results_per_page = 60 # Can up up to 200
 
     usernames = []
-    with open(args.authentication_info, 'r') as creds_file:
-        # Split on '=' in case the format is 'URL: mymattermostserver.com'
-        url =     creds_file.readline().split('=')[1].strip()
-        team_id = creds_file.readline().split('=')[1].strip()
-        token   = creds_file.readline().split('=')[1].strip()
-        bot_name = creds_file.readline().split('=')[1].strip()
-
+    creds = parse_creds_from_file(args.authentication_info)
+    url, team_id, token, bot_name = creds
+    channels = []
 
     # Strip any quotes
     url = url.strip('"').strip("'")
@@ -269,6 +266,23 @@ def main(parser):
         print(f"It appears that the bot {bot_name} does not exist on {url}")
         sys.exit(-1)
 
+    if args.new_bot_name:
+        if not rename_bot(  url, 
+                            this_bot['username'].values[0], 
+                            this_bot['user_id'].values[0], 
+                            args.new_bot_name, 
+                            headers):
+            print("Exiting")
+            sys.exxit(1)
+
+    if args.new_bot_icon:
+        if not update_bot_icon(base_url, 
+                    this_bot['username'].values[0], 
+                    this_bot['user_id'].values[0], 
+                    args.new_bot_icon, 
+                    headers):
+            print("Exiting")
+            sys.exxit(1)            
 
     if args.channels:
         print(args.channels)
@@ -367,7 +381,7 @@ if __name__ == "__main__":
                         '-a',
                         required=True,
                         type=str,
-                        help="File with (one per line): (1 server url, (2 team id, (3 auth token"
+                        help="File with (one per line): (1 server url, (2 team id, (3 auth token, (4 bot name"
                         )
 
     parser.add_argument('--channels', 
@@ -423,6 +437,20 @@ if __name__ == "__main__":
                         default=False,
                         type=str2bool,
                         help="Live (True) or dry (False:default) run"
-                        )                                                                               
+                        )      
+    parser.add_argument('--new-bot-name', 
+                        '-b',
+                        required=False,
+                        default="",
+                        type=str,
+                        help="Temporary bot display name to use for this execution"
+                        )   
+    parser.add_argument('--new-bot-icon', 
+                        '-i',
+                        required=False,
+                        default="",
+                        type=str,
+                        help="Temporary bot display avatar (SVG only)"
+                        )                                                                                                                            
     all_users = main(parser)        
 
