@@ -5,7 +5,8 @@ import argparse
 import pandas as pd
 import sys
 from utils import *
-
+from datetime import datetime
+import time
 # ==============================================================================
 def main(parser):      
     """
@@ -67,6 +68,17 @@ def main(parser):
 
     # Post to channel with provided message
     if args.live_run:
+        if args.delay:
+            try:
+                target_time = datetime.strptime(args.delay, "%m/%d/%Y %H:%M")
+            except ValueError as e:
+                print("Invalid time format, time format must be MM/DD/YYYY: HH:MM")
+                sys.exit(1)
+            delay = target_time - datetime.now()
+            print(f"target _time: {type(target_time)}, delay: {type(delay)}")
+            print(f"I need to sleep until {target_time}, that's {delay}, or {delay.seconds} seconds")
+            time.sleep(delay.seconds)
+            
         print(f"Posting to {args.channel}\nMessage: '{message}'")
         
         dm_info = requests.post(url+"api/v4/posts", 

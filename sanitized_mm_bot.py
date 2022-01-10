@@ -5,6 +5,8 @@ import argparse
 import pandas as pd
 import sys
 import concurrent.futures
+from datetime import datetime
+import time
 from utils import *
 # ==============================================================================
 # Reference: https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-argparse
@@ -187,12 +189,12 @@ def send_dm_to_all_in_df(user_id, user_name, base_url, bot_id, header, message, 
     #user_name = row[1][1]
     #user_id = row[1][0]    
     if not live_run:
-        print(f"DRY RUN, send message to: {user_name:<20} User ID: {user_id}")
+        print(f"DRY RUN, send message:\n'{message}'\nto: {user_name:<20} User ID: {user_id}")
         
     else:
 
         print(f"LIVE RUN, send message to: {user_name} {user_id}")
-        #channel_id = create_dm_channel(base_url, bot_id, user_id, header)
+        channel_id = create_dm_channel(base_url, bot_id, user_id, header)
         header['Content-type'] = "application/json"
         #print("Firing post")
         dm_info = requests.post(base_url+"api/v4/posts", 
@@ -284,6 +286,9 @@ def main(parser):
             print("Exiting")
             sys.exxit(1)            
 
+    if not args.post_id:
+        return
+
     if args.channels:
         print(args.channels)
         channels = get_channels(url, headers)
@@ -309,6 +314,17 @@ def main(parser):
         all_users["Emoji Response(s)"] = ""
     else:
         all_users[f"Responded with {args.emoji}?"] = "No"
+
+    if args.delay:
+        try:
+            target_time = datetime.strptime(args.delay, "%m/%d/%Y %H:%M")
+        except ValueError as e:
+            print("Invalid time format, time format must be MM/DD/YYYY: HH:MM")
+            sys.exit(1)
+        delay = target_time - datetime.now()
+        print(f"target _time: {type(target_time)}, delay: {type(delay)}")
+        print(f"I need to sleep until {target_time}, that's {delay}, or {delay.seconds} seconds")
+        time.sleep(delay.seconds)
 
     reaction_url = f"{url}/api/v4/posts/{args.post_id}/reactions"
     resp = requests.get(reaction_url, headers=headers)
@@ -393,7 +409,8 @@ if __name__ == "__main__":
 
     parser.add_argument('--post-id', 
                         '-p',
-                        required=True,
+                        required=False,
+                        default="",
                         type=str,
                         help="ID of post from which to get reactions.  (Copy the link of the desired post, the ID is the alphanumeric string after the last forward slash)"
                         )
@@ -451,6 +468,14 @@ if __name__ == "__main__":
                         default="",
                         type=str,
                         help="Temporary bot display avatar (SVG only)"
-                        )                                                                                                                            
+                        )  
+    parser.add_argument('--delay', 
+                        '-d',
+                        required=False,
+                        default="",
+                        type=str,
+                        help="Delay until date/time in format: MM/DD/YYYY: HH:MM"
+                        )                           
+
     all_users = main(parser)        
 

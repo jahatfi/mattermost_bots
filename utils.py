@@ -40,7 +40,7 @@ def rename_bot(base_url, old_bot_name, old_bot_id, new_bot_name, headers):
     Rename bot to new name
     """
     payload = {}
-    payload["username"] = old_bot_name   
+    payload["username"] = new_bot_name   
     payload["display_name"] = new_bot_name
     resp = requests.put(base_url+"api/v4/bots/"+old_bot_id, 
                             headers=headers,
