@@ -70,6 +70,7 @@ def main(parser):
     # Post to channel with provided message
     if args.live_run:
         print("Sleeping...")
+        sys.stdout.flush()        
         time.sleep(delay.seconds)
 
 

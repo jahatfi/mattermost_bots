@@ -303,6 +303,7 @@ def main(parser):
     delay_seconds = return_computed_delay(args.delay)
     if args.live_run:
         print("Dry run, so skip the sleep.")
+        sys.stdout.flush()        
         time.sleep(delay_seconds)
 
     reaction_url = f"{url}/api/v4/posts/{args.post_id}/reactions"
