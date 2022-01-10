@@ -1,6 +1,7 @@
 import argparse
 import requests
 import json
+from datetime import datetime
 # ==============================================================================
 # Reference: https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-argparse
 def str2bool(v):
@@ -80,3 +81,16 @@ def update_bot_icon(base_url, bot_name, bot_id, new_image_file, headers):
         print(f"Updated image for {bot_name} to {new_image_file}")
 
     return True
+# ==============================================================================
+def return_computed_delay(target_time):
+    """Compute delay between now and target time"""
+    if not target_time:
+        return 0
+    try:
+        target_time = datetime.strptime(target_time, "%m/%d/%Y %H:%M")
+    except ValueError as e:
+        print("Invalid time format, time format must be MM/DD/YYYY: HH:MM")
+        sys.exit(1)
+    delay = target_time - datetime.now()
+    print(f"I need to sleep until {target_time}, that's {delay}, or {delay.seconds} seconds")
+    return delay.seconds

@@ -66,18 +66,7 @@ def main(parser):
         print("URL: " + channel_by_name_url)
         sys.exit(1)
 
-    delay_seconds = 0
-    if args.delay:
-        try:
-            target_time = datetime.strptime(args.delay, "%m/%d/%Y %H:%M")
-        except ValueError as e:
-            print("Invalid time format, time format must be MM/DD/YYYY: HH:MM")
-            sys.exit(1)
-        delay = target_time - datetime.now()
-        print(f"target _time: {type(target_time)}, delay: {type(delay)}")
-        print(f"I need to sleep until {target_time}, that's {delay}, or {delay.seconds} seconds")
-        delay_seconds = delay.seconds
-
+    delay_seconds = return_computed_delay(args.delay)
     # Post to channel with provided message
     if args.live_run:
         print("Sleeping...")

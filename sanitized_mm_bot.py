@@ -10,21 +10,6 @@ import time
 from utils import *
 # ==============================================================================
 # Reference: https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-argparse
-def str2bool(v):
-    """
-    Validates that an argparse argument is a boolean value.
-    """
-    if isinstance(v, bool):
-       return v
-    if v.lower() in ('yes', 'true', 't', 'y', '1'):
-        return True
-    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
-        return False
-    else:
-        raise argparse.ArgumentTypeError('Boolean value expected.')
-
-# ==============================================================================
-# Reference: https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-argparse
 def valid_sorter(v):
     """
     Validates that argparse sort-on argument is valid value.
@@ -315,16 +300,10 @@ def main(parser):
     else:
         all_users[f"Responded with {args.emoji}?"] = "No"
 
-    if args.delay:
-        try:
-            target_time = datetime.strptime(args.delay, "%m/%d/%Y %H:%M")
-        except ValueError as e:
-            print("Invalid time format, time format must be MM/DD/YYYY: HH:MM")
-            sys.exit(1)
-        delay = target_time - datetime.now()
-        print(f"target _time: {type(target_time)}, delay: {type(delay)}")
-        print(f"I need to sleep until {target_time}, that's {delay}, or {delay.seconds} seconds")
-        time.sleep(delay.seconds)
+    delay_seconds = return_computed_delay(args.delay)
+    if args.live_run:
+        print("Dry run, so skip the sleep.")
+        time.sleep(delay_seconds)
 
     reaction_url = f"{url}/api/v4/posts/{args.post_id}/reactions"
     resp = requests.get(reaction_url, headers=headers)
