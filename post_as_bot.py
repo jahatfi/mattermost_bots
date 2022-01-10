@@ -78,7 +78,7 @@ def main(parser):
             print(f"target _time: {type(target_time)}, delay: {type(delay)}")
             print(f"I need to sleep until {target_time}, that's {delay}, or {delay.seconds} seconds")
             time.sleep(delay.seconds)
-            
+
         print(f"Posting to {args.channel}\nMessage: '{message}'")
         
         dm_info = requests.post(url+"api/v4/posts", 
@@ -124,5 +124,14 @@ if __name__ == "__main__":
                         default=False,
                         type=str2bool,
                         help="Live (True) or dry (False:default) run"
-                        )                                                                               
+                        )      
+
+    parser.add_argument('--delay', 
+                        '-d',
+                        required=False,
+                        default="",
+                        type=str,
+                        help="Delay until date/time in format: MM/DD/YYYY: HH:MM"
+                        )  
+                                                                                                                         
     all_users = main(parser)        
