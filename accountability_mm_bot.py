@@ -118,8 +118,7 @@ def process_reactions(args, reactions, users_url, headers, all_users):
         if args.emoji == "*":
             all_users.loc[all_users['id'] == reaction['user_id'], "Emoji Response(s)"] += reaction['emoji_name']+"|"
         elif args.emoji == reaction['emoji_name']:
-            all_users[all_users['id'] == reaction['user_id']][f"Responded with {args.emoji}?"] = "Yes"
-
+            all_users.loc[all_users['id'] == reaction['user_id'], f"Responded with {args.emoji}?"] = "Yes"
     return all_users
 
 # ==============================================================================
@@ -337,7 +336,7 @@ def main(parser):
         pprint.pprint(posters)            
     else:
         posters = all_users[all_users[f"Responded with {args.emoji}?"] == "Yes"]
-        print(f"The following {len(posters)} users have NOT posted the '{args.emoji}' emoji on post {args.post_id}")
+        print(f"The following {len(posters)} users HAVE posted the '{args.emoji}' emoji on post {args.post_id}")
         pprint.pprint(posters)
 
     if args.emoji == "*":
@@ -352,7 +351,7 @@ def main(parser):
 
     # Send provided DM
     for recipients, message in [[posters, args.message_to_responders], [non_posters, args.message_to_non_responders]]:
-        if not message: 
+        if not message or 0 ==  len(recipients): 
             continue
 
         these_headers = [headers] * len(recipients)
