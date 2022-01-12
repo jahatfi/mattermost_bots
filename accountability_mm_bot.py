@@ -133,7 +133,7 @@ def dm_user(base_url, username, headers, message, team_id):
     }
     resp = requests.get(base_url+"api/v4/channels/direct", headers=headers)
 # ==============================================================================
-def get_bot_info(base_url, bot_name, headers):
+def get_bot_info(base_url, bot_id, headers):
     """
     Return bot info for this bot, None if it doesn't exist
     """
@@ -142,7 +142,7 @@ def get_bot_info(base_url, bot_name, headers):
     all_bots = pd.DataFrame(all_bots)
     pprint.pprint(all_bots)
 
-    return all_bots[all_bots['username'] == bot_name]
+    return all_bots[all_bots['user_id'] == bot_id]
 #==============================================================================
 def create_dm_channel(base_url, bot_id, user_id, header):
     """
@@ -167,18 +167,26 @@ def send_dm(base_url, channel_id, header, message):
     return dm_info
 
 #==============================================================================
-def send_dm_to_all_in_df(user_id, user_name, base_url, bot_id, header, message, live_run):
+def send_dm_to_all_in_df(   user_id, 
+                            user_name, 
+                            base_url, 
+                            bot_id, 
+                            header, 
+                            message, 
+                            live_run,
+                            bot_name):
     """
     Send dm to all users in the provided dataframe
     """    
     #user_name = row[1][1]
     #user_id = row[1][0]    
     if not live_run:
-        print(f"DRY RUN, send message:\n'{message}'\nto: {user_name:<20} User ID: {user_id}")
+        print(f"DRY RUN, send message as {bot_name}:\n'{message}'")
+        print(f"To: {user_name:<20} User ID: {user_id}")
         
     else:
 
-        print(f"LIVE RUN, send message to: {user_name} {user_id}")
+        print(f"LIVE RUN, send message as {bot_name} to: {user_name} {user_id}")
         channel_id = create_dm_channel(base_url, bot_id, user_id, header)
         header['Content-type'] = "application/json"
         #print("Firing post")
@@ -212,7 +220,7 @@ def main(parser):
 
     usernames = []
     creds = parse_creds_from_file(args.authentication_info)
-    url, team_id, token, bot_name = creds
+    url, team_id, token, bot_id = creds
     channels = []
 
     # Strip any quotes
@@ -245,33 +253,15 @@ def main(parser):
         sys.exit(-1)
 
     # Get this bot info
-    this_bot = get_bot_info(url, bot_name, headers)
+    this_bot = get_bot_info(url, bot_id, headers)
     if not this_bot.empty:
         pprint.pprint(this_bot)
-        bot_id = this_bot['user_id'].values[0]
     else:
-        print(f"It appears that the bot {bot_name} does not exist on {url}")
-        sys.exit(-1)
-
-    if args.new_bot_name:
-        if not rename_bot(  url, 
-                            this_bot['username'].values[0], 
-                            this_bot['user_id'].values[0], 
-                            args.new_bot_name, 
-                            headers):
-            print("Exiting")
-            sys.exxit(1)
-
-    if args.new_bot_icon:
-        if not update_bot_icon(base_url, 
-                    this_bot['username'].values[0], 
-                    this_bot['user_id'].values[0], 
-                    args.new_bot_icon, 
-                    headers):
-            print("Exiting")
-            sys.exxit(1)            
+        print(f"It appears that the bot with ID {bot_id} does not exist on {url}")
+        sys.exit(-1)         
 
     if not args.post_id:
+        print("Not post ID provided. Returning.")
         return
 
     if args.channels:
@@ -306,6 +296,32 @@ def main(parser):
         sys.stdout.flush()        
         time.sleep(delay_seconds)
 
+    # Change the bot name/id if applicable AFTER the sleep, in case 
+    # another bot changed it while it was sleeping
+    if args.new_bot_name:
+        if not rename_bot(  url, 
+                            this_bot['username'].values[0], 
+                            this_bot['user_id'].values[0], 
+                            args.new_bot_name, 
+                            headers):
+            print("Exiting")
+            sys.exit(1)
+        else:
+            print(f"Updated botname to {args.new_bot_name}")
+            this_bot['username'] = args.new_bot_name
+
+    # Now (regardless of name update or not) create bot_name for easier reading
+    bot_name = this_bot['username']
+
+    if args.new_bot_icon:
+        if not update_bot_icon( url, 
+                                this_bot['username'].values[0], 
+                                this_bot['user_id'].values[0], 
+                                args.new_bot_icon, 
+                                headers):
+            print("Exiting")
+            sys.exit(1)
+
     reaction_url = f"{url}/api/v4/posts/{args.post_id}/reactions"
     resp = requests.get(reaction_url, headers=headers)
     reactions = json.loads(resp.text)
@@ -333,15 +349,6 @@ def main(parser):
         pprint.pprint(non_posters)         
 
     # Send provided DM
-    '''
-    if args.message_to_non_responders and not non_posters.empty:
-        non_posters.apply(send_dm_to_all_in_df, axis=1, args=(url, bot_id, headers, args.message_to_non_responders))
-
-    if args.message_to_responders and not posters.empty:
-        posters.apply(send_dm_to_all_in_df, axis=1, args=(url, bot_id, headers, args.message_to_responders+args.post_id))
-    '''
-
-
     for recipients, message in [[posters, args.message_to_responders], [non_posters, args.message_to_non_responders]]:
         if not message: 
             continue
@@ -356,14 +363,15 @@ def main(parser):
             messages = [message + f" (Post: {url}{team_name}/pl/{args.post_id})"] * len(recipients)
             print(f"Sending message: '{messages[0]}'")
 
-            results = executor.map(   send_dm_to_all_in_df, 
-                            recipients['id'].values,
-                            recipients['username'].values, 
-                            base_urls,
-                            bot_ids,
-                            these_headers, 
-                            messages, 
-                            live_flag
+            results = executor.map( send_dm_to_all_in_df, 
+                                    recipients['id'].values,
+                                    recipients['username'].values, 
+                                    base_urls,
+                                    bot_ids,
+                                    these_headers, 
+                                    messages, 
+                                    live_flag,
+                                    bot_name
                         )
 
     return all_users

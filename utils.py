@@ -2,6 +2,7 @@ import argparse
 import requests
 import json
 from datetime import datetime
+import pprint
 # ==============================================================================
 # Reference: https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-argparse
 def str2bool(v):
@@ -60,25 +61,31 @@ def update_bot_icon(base_url, bot_name, bot_id, new_image_file, headers):
     """
     Update image for bot
     """
-    if not new_image_file.endswith(".svg"):
-        print(f"Cannot update bot icon with {new_image_file}, file must be .svg")
-        return False
+    #if not new_image_file.endswith(".svg"):
+    #    print(f"Cannot update bot icon with {new_image_file}, file must be .svg")
+    #    return False
 
-    image_data = ""
-    with open(new_image_file, "rb") as image_file:
-        image_data = image_file.read()
-    payload = {"image": image_data}
-    resp = requests.put(base_url+"api/v4/bots/"+bot_id+'/'+"icon", 
-                        headers=headers,
-                        data=json.dumps(payload))
+    files = {
+        'image': (new_image_file, open(new_image_file, 'rb')),
+    }
 
+
+    new_headers = {}
+    new_headers['Authorization'] = headers['Authorization']
+    resp = requests.post(base_url+"api/v4/bots/"+bot_id+'/'+"icon", 
+                        headers=new_headers,
+                        files=files
+            )
     
     if resp.status_code < 200 or resp.status_code > 299:
-        print(f"Failed to update icon {old_bot_name} bot to {new_bot_name}")
-        print(resp)    
+        print(f"Failed to update icon for {bot_name}")
+        pprint.pprint(json.loads(resp.text))    
         return False
     else:
-        print(f"Updated image for {bot_name} to {new_image_file}")
+        # TODO This doesn't seem to work!
+        print("Updating icon currently doesn't work even though server responded with 200/OK:")
+        #print(f"Updated image for {bot_name} to {new_image_file}")
+        pprint.pprint(json.loads(resp.text))    
 
     return True
 # ==============================================================================

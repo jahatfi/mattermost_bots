@@ -128,5 +128,18 @@ if __name__ == "__main__":
                         type=str,
                         help="Delay until date/time in format: MM/DD/YYYY: HH:MM"
                         )  
-
+    parser.add_argument('--new-bot-name', 
+                        '-b',
+                        required=False,
+                        default="",
+                        type=str,
+                        help="Temporary bot display name to use for this execution"
+                        )   
+    parser.add_argument('--new-bot-icon', 
+                        '-i',
+                        required=False,
+                        default="",
+                        type=str,
+                        help="Temporary bot display avatar (SVG only)"
+                        )  
     all_users = main(parser)        
