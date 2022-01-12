@@ -218,11 +218,31 @@ def main(parser):
     filter_on_usernames = False
     filter_on_channels = False
     results_per_page = 60 # Can up up to 200
+    message_to_responders = ""
+    message_to_non_responders = ""
 
     usernames = []
     creds = parse_creds_from_file(args.authentication_info)
     url, team_id, token, bot_id = creds
     channels = []
+
+    # Next the message files
+    if args.message_to_responders:
+        try:
+            with open(args.message_to_responders, "r") as message_file:
+                message_to_responders = message_file.read()
+        except FileNotFoundError as e: 
+            print(f"Can't find {args.message_to_responders}")
+            sys.exit(1)
+
+    # Next message file
+    if args.message_to_non_responders:
+        try:
+            with open(args.message_to_non_responders, "r") as message_file:
+                message_to_non_responders = message_file.read()
+        except FileNotFoundError as e: 
+            print(f"Can't find {args.message_to_non_responders}")
+            sys.exit(1)        
 
     # Strip any quotes
     url = url.strip('"').strip("'")
@@ -350,7 +370,7 @@ def main(parser):
         pprint.pprint(non_posters)         
 
     # Send provided DM
-    for recipients, message in [[posters, args.message_to_responders], [non_posters, args.message_to_non_responders]]:
+    for recipients, message in [[posters, message_to_responders], [non_posters, message_to_non_responders]]:
         if not message or 0 ==  len(recipients): 
             continue
 
@@ -362,7 +382,7 @@ def main(parser):
         with concurrent.futures.ThreadPoolExecutor() as executor:
 
             messages = [message + f" (Post: {url}{team_name}/pl/{args.post_id})"] * len(recipients)
-            print(f"Sending message: '{messages[0]}'")
+            print(f"Sending message to {len(recipients)} recipients: '{messages[0]}'")
 
             results = executor.map( send_dm_to_all_in_df, 
                                     recipients['id'].values,
@@ -428,14 +448,14 @@ if __name__ == "__main__":
                         required=False,
                         default="",
                         type=str,
-                        help="Message to DM users who did NOT post one of the specified emojis"
+                        help="File with message (e.g. plain text or markdown) to DM users who did NOT post one of the specified emojis"
                         )  
     parser.add_argument('--message-to-responders', 
                         '-m',
                         required=False,
                         default="",
                         type=str,
-                        help="Message to DM users who DID post one of the specified emojis"
+                        help="File with message (e.g. plain text or markdown) to DM users who DID post one of the specified emojis"
                         )     
     parser.add_argument('--live-run', 
                         '-l',
