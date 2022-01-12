@@ -73,7 +73,7 @@ def main(parser):
     if args.live_run:
         print("Sleeping...")
         sys.stdout.flush()        
-        time.sleep(delay.seconds)
+        time.sleep(delay_seconds)
 
 
         print(f"Posting to {args.channel}\nMessage: '{message}'")
