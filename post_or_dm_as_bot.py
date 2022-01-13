@@ -92,24 +92,23 @@ def main(parser):
         sys.stdout.flush()        
         time.sleep(delay_seconds)
 
-        print(f"Posting to {args.channel}\nMessage: '{message}'")
-        
+        if args.channel:
+            print(f"Posting to {args.channel}\nMessage: '{message}'")
+        else:
+            print(f"DMing {args.user}\nMessage: '{message}'")        
         post_url = url+"api/v4/posts"
         resp = requests.post(post_url, 
                                 headers=headers,
                                 data=json.dumps({"channel_id": channel_id, 
                                                 "message":message}))
-        if resp.status_code < 300 and resp.status_code >= 200:
-            print("Error:")
-            pprint.pprint(json.loads(resp.text))
-            print(f"URL was {url+'api/v4/posts'}.  See the problem?") 
+        fail_msg = f"Couldn't post/dm {args.channel}{args.user}"
+        log_failure_and_exit_if_failed(post_url, resp, fail_msg)
 
-        else:
-            resp = json.dumps(resp.text)
-            if args.post_id_file:
-                with(args.post_id_file, "w") as outfile:
-                    print(f"Writing resulting post ID: {resp['id']} to {args.post_id_file}")
-                    outfile.write(resp['id'])
+        resp = json.loads(resp.text)
+        if args.post_id_file:
+            with open(args.post_id_file, "w") as outfile:
+                print(f"Writing resulting post ID: {resp['id']} to {args.post_id_file}")
+                outfile.write(resp['id'])
 
     else:
         print("Dry run, not posting anything:")

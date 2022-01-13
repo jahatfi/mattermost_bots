@@ -127,7 +127,9 @@ def create_dm_channel(base_url, bot_id, user_id, header):
 # ==============================================================================
 def log_failure_and_exit_if_failed(url, resp, message):
     if resp.status_code < 200 or resp.status_code > 299:
-        pprint.pprint(json.loads(resp.text))
+        resp = json.loads(resp.text)
+        pprint.pprint(resp)
         print(message)
         print(f"URL was '{url}'.  See the problem?")
-        sys.exit(-1)    
+        sys.exit(-1)  
+
