@@ -20,11 +20,17 @@ def main(parser):
     5. File with message,
     6. Channel name
     Post the provided message in the provided channel as this bot
-    """                                              
+    """                  
+
+
     args = parser.parse_args()
     pprint.pprint(args)
     message = ""
     results_per_page = 60 # Can up up to 200
+
+    if not (args.channel or args.user) or (args.channel and args.user):
+        print("Must provide exactly --user or --channel option, not none or both")
+        sys.exit(-1)
 
     # Check if files exists
 
@@ -37,7 +43,7 @@ def main(parser):
         sys.exit(1)
 
     creds = parse_creds_from_file(args.authentication_info)
-    url, team_id, token, bot_name = creds
+    url, team_id, token, bot_id = creds
 
     # Next the message file
     try:
@@ -56,36 +62,62 @@ def main(parser):
                 "per_page": str(results_per_page),
                 "Authorization" : f"Bearer {token}"
             }
-    channel_by_name_url = f"{url}api/v4/teams/{team_id}/channels/name/{args.channel}"
-    response = requests.get(channel_by_name_url, headers=headers)
-    resp_dict = json.loads(response.text)
+    if args.channel:
+        channel_url = f"{url}api/v4/teams/{team_id}/channels/name/{args.channel}"
+        fail_msg = f"Couldn't create/get channel {args.channel}"
 
-    if response.status_code < 300 and response.status_code >= 200:
-        channel_id = resp_dict['id']
+        resp = requests.get(channel_by_name_url, headers=headers)
+        # Check for failure
+        fail_msg = f"Couldn't create/get channel {args.channel}"
+        log_failure_and_exit_if_faile(url, resp, fail_msg)
+        # Succeded
+        channel_info = json.loads(resp.text)
+        channel_id = channel_info['id']
     else:
-        print(f"Got response code: {response.status_code}")
-        pprint.pprint(resp_dict)
-        print("URL: " + channel_by_name_url)
-        sys.exit(1)
+        # Call below will exit if the GET fails
+        user_info_url = f"{url}api/v4/users/username/{args.user}"
+        resp = requests.get(user_info_url, headers=headers)
+        # Check for failure
+        fail_msg = f"Couldn't create/get dm channel {args.channel}"
+        log_failure_and_exit_if_failed(url, resp, fail_msg)
+        user_id = json.loads(resp.text)['id']
+        channel_id  = create_dm_channel(url, bot_id, user_id, headers)
 
+    # Get delay time based on provided value, 0 if none provided.
     delay_seconds = return_computed_delay(args.delay)
+
     # Post to channel with provided message
     if args.live_run:
         print("Sleeping...")
         sys.stdout.flush()        
         time.sleep(delay_seconds)
 
-
         print(f"Posting to {args.channel}\nMessage: '{message}'")
         
-        dm_info = requests.post(url+"api/v4/posts", 
+        post_url = url+"api/v4/posts"
+        resp = requests.post(post_url, 
                                 headers=headers,
                                 data=json.dumps({"channel_id": channel_id, 
                                                 "message":message}))
-        
+        if resp.status_code < 300 and resp.status_code >= 200:
+            print("Error:")
+            pprint.pprint(json.loads(resp.text))
+            print(f"URL was {url+'api/v4/posts'}.  See the problem?") 
+
+        else:
+            resp = json.dumps(resp.text)
+            if args.post_id_file:
+                with(args.post_id_file, "w") as outfile:
+                    print(f"Writing resulting post ID: {resp['id']} to {args.post_id_file}")
+                    outfile.write(resp['id'])
+
     else:
         print("Dry run, not posting anything:")
-        print(f"Would have posted to {args.channel}\nMessage: '{message}'")
+        if args.channel:
+            print(f"Would have posted to {args.channel}\nMessage: '{message}'")
+        else:
+            print(f"Would have dm'd {args.user}\nMessage: '{message}'")
+
 
     print("Done.")
 # ==============================================================================
@@ -103,7 +135,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--channel', 
                         '-c',
-                        required=True,
+                        required=False,
                         type=str,
                         help="Channel name to post in"
                         )   
@@ -144,4 +176,18 @@ if __name__ == "__main__":
                         type=str,
                         help="Temporary bot display avatar (SVG only)"
                         )  
+    parser.add_argument('--post_id_file', 
+                        '-p',
+                        required=False,
+                        default="",
+                        type=str,
+                        help="Filename to save resulting post ID to."
+                        )   
+    parser.add_argument('--user', 
+                        '-u',
+                        required=False,
+                        default="",
+                        type=str,
+                        help="User to DM.  Mututally exclusive with --channel option"
+                        )                                                  
     all_users = main(parser)        

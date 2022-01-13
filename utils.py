@@ -107,3 +107,27 @@ def return_computed_delay(target_time):
     delay = target_time - datetime.now()
     print(f"I need to sleep until {target_time}, that's {delay}, or {delay.seconds} seconds")
     return delay.seconds
+# ==============================================================================
+def create_dm_channel(base_url, bot_id, user_id, header):
+    """
+    Return dm channel info between bot and user
+    """    
+    header['Content-type'] = "application/json"
+    channel_info = requests.post(base_url+"api/v4/channels/direct", 
+                                headers=header,
+                                data=json.dumps([bot_id, user_id]) )
+
+    if channel_info.status_code < 200 or channel_info.status_code > 299:
+        print(f"Failed to update icon for {bot_name}")
+        pprint.pprint(json.loads(channel_info.text))    
+        sys.exit(-1)
+
+    channel_info = json.loads(channel_info.text)
+    return channel_info['id']
+# ==============================================================================
+def log_failure_and_exit_if_failed(url, resp, message):
+    if resp.status_code < 200 or resp.status_code > 299:
+        pprint.pprint(json.loads(resp.text))
+        print(message)
+        print(f"URL was '{url}'.  See the problem?")
+        sys.exit(-1)    

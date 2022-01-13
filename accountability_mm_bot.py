@@ -10,6 +10,7 @@ import concurrent.futures
 from datetime import datetime
 import time
 from utils import *
+import os
 # ==============================================================================
 # Reference: https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-argparse
 def valid_sorter(v):
@@ -121,18 +122,7 @@ def process_reactions(args, reactions, users_url, headers, all_users):
             all_users.loc[all_users['id'] == reaction['user_id'], f"Responded with {args.emoji}?"] = "Yes"
     return all_users
 
-# ==============================================================================
-def dm_user(base_url, username, headers, message, team_id):
-    # Start by creating a channel
-    new_headers = {
-        "team_id": team_id,
-        "name": "string",
-        "display_name": "Autobot",
-        "purpose": "string",
-        "header": "DM Between you and autobot",
-        "type": "P"
-    }
-    resp = requests.get(base_url+"api/v4/channels/direct", headers=headers)
+
 # ==============================================================================
 def get_bot_info(base_url, bot_id, headers):
     """
@@ -144,17 +134,7 @@ def get_bot_info(base_url, bot_id, headers):
     pprint.pprint(all_bots)
 
     return all_bots[all_bots['user_id'] == bot_id]
-#==============================================================================
-def create_dm_channel(base_url, bot_id, user_id, header):
-    """
-    Return dm channel info between bot and user
-    """    
-    header['Content-type'] = "application/json"
-    channel_info = requests.post(base_url+"api/v4/channels/direct", 
-                                headers=header,
-                                data=json.dumps([bot_id, user_id]) )
-    channel_info = json.loads(channel_info.text)
-    return channel_info['id']
+
 #==============================================================================
 def send_dm(base_url, channel_id, header, message):
     """
@@ -281,9 +261,15 @@ def main(parser):
         print(f"It appears that the bot with ID {bot_id} does not exist on {url}")
         sys.exit(-1)         
 
+    if os.path.exists(args.post_id):
+        with open(args.post_id) as post_id_file:
+            args.post_id = post_id_file.readline().strip()
+
     if not args.post_id:
         print("Not post ID provided. Returning.")
         return
+
+    print(f"Post ID: {args.post_id}")
 
     if args.channels:
         print(args.channels)
@@ -344,6 +330,10 @@ def main(parser):
 
     reaction_url = f"{url}/api/v4/posts/{args.post_id}/reactions"
     resp = requests.get(reaction_url, headers=headers)
+    if resp.status_code < 200 or resp.status_code > 299:
+        pprint.pprint(json.loads(resp.text))
+        print(f"URL was '{reaction_url}'.  See the problem?")
+        sys.exit(-1)
     reactions = json.loads(resp.text)
 
     all_users  =  process_reactions(args, reactions, users_url, headers, all_users)
@@ -352,21 +342,21 @@ def main(parser):
     if args.emoji == "*":
         posters = all_users[all_users["Emoji Response(s)"] != ""]
         print(f"The following {len(posters)} users HAVE posted at least 1 emoji on post {args.post_id}")
-        pprint.pprint(posters)            
+        pprint.pprint(posters['username'])            
     else:
         posters = all_users[all_users[f"Responded with {args.emoji}?"] == "Yes"]
         print(f"The following {len(posters)} users HAVE posted the '{args.emoji}' emoji on post {args.post_id}")
-        pprint.pprint(posters)
+        pprint.pprint(posters['username'])            
 
     if args.emoji == "*":
         non_posters = all_users[all_users["Emoji Response(s)"] == ""]
         print(f"The following {len(non_posters)} users have NOT posted any emoji on post {args.post_id}")
-        pprint.pprint(non_posters)
+        pprint.pprint(non_posters['username'])
 
     else:
         non_posters = all_users[all_users[f"Responded with {args.emoji}?"] == "No"]
         print(f"The following {len(non_posters)} users have NOT posted the '{args.emoji}' emoji on post {args.post_id}")
-        pprint.pprint(non_posters)         
+        pprint.pprint(non_posters['username'])         
 
     # Send provided DM
     for recipients, message in [[posters, message_to_responders], [non_posters, message_to_non_responders]]:
@@ -420,7 +410,7 @@ if __name__ == "__main__":
                         required=False,
                         default="",
                         type=str,
-                        help="ID of post from which to get reactions.  (Copy the link of the desired post, the ID is the alphanumeric string after the last forward slash)"
+                        help="ID of post (can be a file with post ID on first line) from which to get reactions.  (Copy the link of the desired post, the ID is the alphanumeric string after the last forward slash)"
                         )
     parser.add_argument('--emoji', 
                         '-e',
