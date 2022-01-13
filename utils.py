@@ -5,6 +5,7 @@ import requests
 import json
 from datetime import datetime
 import pprint
+import sys
 # ==============================================================================
 # Reference: https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-argparse
 def str2bool(v):
@@ -100,6 +101,9 @@ def return_computed_delay(target_time):
     except ValueError as e:
         print("Invalid time format, time format must be MM/DD/YYYY: HH:MM")
         sys.exit(1)
+    if target_time < datetime.now():
+        print(f"{target_time} in the past!")
+        sys.exit(-1)
     delay = target_time - datetime.now()
     print(f"I need to sleep until {target_time}, that's {delay}, or {delay.seconds} seconds")
     return delay.seconds
