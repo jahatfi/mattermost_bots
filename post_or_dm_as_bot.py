@@ -28,6 +28,9 @@ def main(parser):
     message = ""
     results_per_page = 60 # Can up up to 200
 
+    # Print current date + time for log review purposes
+    print( str(datetime.now()).center(80, "=") )
+
     if not (args.channel or args.user) or (args.channel and args.user):
         print("Must provide exactly --user or --channel option, not none or both")
         sys.exit(-1)

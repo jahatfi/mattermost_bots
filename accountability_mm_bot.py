@@ -206,6 +206,9 @@ def main(parser):
     url, team_id, token, bot_id = creds
     channels = []
 
+    # Print current date + time for log review purposes
+    print( str(datetime.now()).center(80, "=") )
+
     # Next the message files
     if args.message_to_responders:
         try:
