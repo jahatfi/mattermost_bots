@@ -265,7 +265,7 @@ def main(parser):
         sys.exit(-1)         
 
     if os.path.exists(args.post_id):
-        with open(args.post_id) as post_id_file:
+        with open(args.post_id, "r") as post_id_file:
             args.post_id = post_id_file.readline().strip()
 
     if not args.post_id:
