@@ -69,10 +69,10 @@ def main(parser):
         channel_url = f"{url}api/v4/teams/{team_id}/channels/name/{args.channel}"
         fail_msg = f"Couldn't create/get channel {args.channel}"
 
-        resp = requests.get(channel_by_name_url, headers=headers)
+        resp = requests.get(channel_url, headers=headers)
         # Check for failure
         fail_msg = f"Couldn't create/get channel {args.channel}"
-        log_failure_and_exit_if_faile(url, resp, fail_msg)
+        log_failure_and_exit_if_failed(url, resp, fail_msg)
         # Succeded
         channel_info = json.loads(resp.text)
         channel_id = channel_info['id']
