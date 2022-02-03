@@ -178,7 +178,86 @@ def send_dm_to_all_in_df(   user_id,
         dm_info = json.loads(dm_info.text)
 
     #return dm_info
-    
+#==============================================================================    
+def get_multiple_responses(args, url, headers, team_id):
+    reaction_url = f"{url}api/v4/teams/{team_id}/posts/search"
+    data = {
+    "is_or_search": False,
+    "time_zone_offset": 0,
+    "include_deleted_channels": True,
+    "page": 0,
+    "per_page": 60
+    }
+    data["terms"] = args.keyword #+ "&in:local_announcements"
+    pprint.pprint(data)
+
+    resp = requests.post(reaction_url, headers=headers,data=json.dumps(data))
+    if resp.status_code < 200 or resp.status_code > 299:
+        pprint.pprint(json.loads(resp.text))
+        print(f"URL was '{reaction_url}'.  See the problem?")
+        sys.exit(-1)
+    all_matching_posts = json.loads(resp.text)
+    print(all_matching_posts)
+#==============================================================================    
+def get_single_response(args, url, headers):
+
+    reaction_url = f"{url}/api/v4/posts/{args.post_id}/reactions"
+    resp = requests.get(reaction_url, headers=headers)
+    if resp.status_code < 200 or resp.status_code > 299:
+        pprint.pprint(json.loads(resp.text))
+        print(f"URL was '{reaction_url}'.  See the problem?")
+        sys.exit(-1)
+    reactions = json.loads(resp.text)
+
+    all_users  =  process_reactions(args, reactions, users_url, headers, all_users)
+    all_users.sort_values(args.sort_on, inplace=True)
+
+    if args.emoji == "*":
+        posters = all_users[all_users["Emoji Response(s)"] != ""]
+        print(f"The following {len(posters)} users HAVE posted at least 1 emoji on post {args.post_id}")
+        pprint.pprint(posters['username'])            
+    else:
+        posters = all_users[all_users[f"Responded with {args.emoji}?"] == "Yes"]
+        print(f"The following {len(posters)} users HAVE posted the '{args.emoji}' emoji on post {args.post_id}")
+        pprint.pprint(posters['username'])            
+
+    if args.emoji == "*":
+        non_posters = all_users[all_users["Emoji Response(s)"] == ""]
+        print(f"The following {len(non_posters)} users have NOT posted any emoji on post {args.post_id}")
+        pprint.pprint(non_posters['username'])
+
+    else:
+        non_posters = all_users[all_users[f"Responded with {args.emoji}?"] == "No"]
+        print(f"The following {len(non_posters)} users have NOT posted the '{args.emoji}' emoji on post {args.post_id}")
+        pprint.pprint(non_posters['username'])         
+
+    # Send provided DM
+    for recipients, message in [[posters, message_to_responders], [non_posters, message_to_non_responders]]:
+        if not message or 0 ==  len(recipients): 
+            continue
+
+        these_headers = [headers] * len(recipients)
+        live_flag = [args.live_run] * len(recipients)
+        base_urls = [url] * len(recipients)
+        bot_ids = [bot_id] * len(recipients)
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+
+            messages = [message + f" (Post: {url}{team_name}/pl/{args.post_id})"] * len(recipients)
+            print(f"Sending message to {len(recipients)} recipients: '{messages[0]}'")
+
+            results = executor.map( send_dm_to_all_in_df, 
+                                    recipients['id'].values,
+                                    recipients['username'].values, 
+                                    base_urls,
+                                    bot_ids,
+                                    these_headers, 
+                                    messages, 
+                                    live_flag,
+                                    bot_name
+                        )
+
+    return all_users    
 # ==============================================================================
 def main(parser):      
     """
@@ -268,8 +347,8 @@ def main(parser):
         with open(args.post_id, "r") as post_id_file:
             args.post_id = post_id_file.readline().strip()
 
-    if not args.post_id:
-        print("Not post ID provided. Returning.")
+    if not args.post_id and not args.keyword:
+        print("Not post ID or keyword provided. Returning.")
         return
 
     print(f"Post ID: {args.post_id}")
@@ -331,63 +410,10 @@ def main(parser):
             print("Exiting")
             sys.exit(1)
 
-    reaction_url = f"{url}/api/v4/posts/{args.post_id}/reactions"
-    resp = requests.get(reaction_url, headers=headers)
-    if resp.status_code < 200 or resp.status_code > 299:
-        pprint.pprint(json.loads(resp.text))
-        print(f"URL was '{reaction_url}'.  See the problem?")
-        sys.exit(-1)
-    reactions = json.loads(resp.text)
-
-    all_users  =  process_reactions(args, reactions, users_url, headers, all_users)
-    all_users.sort_values(args.sort_on, inplace=True)
-
-    if args.emoji == "*":
-        posters = all_users[all_users["Emoji Response(s)"] != ""]
-        print(f"The following {len(posters)} users HAVE posted at least 1 emoji on post {args.post_id}")
-        pprint.pprint(posters['username'])            
-    else:
-        posters = all_users[all_users[f"Responded with {args.emoji}?"] == "Yes"]
-        print(f"The following {len(posters)} users HAVE posted the '{args.emoji}' emoji on post {args.post_id}")
-        pprint.pprint(posters['username'])            
-
-    if args.emoji == "*":
-        non_posters = all_users[all_users["Emoji Response(s)"] == ""]
-        print(f"The following {len(non_posters)} users have NOT posted any emoji on post {args.post_id}")
-        pprint.pprint(non_posters['username'])
-
-    else:
-        non_posters = all_users[all_users[f"Responded with {args.emoji}?"] == "No"]
-        print(f"The following {len(non_posters)} users have NOT posted the '{args.emoji}' emoji on post {args.post_id}")
-        pprint.pprint(non_posters['username'])         
-
-    # Send provided DM
-    for recipients, message in [[posters, message_to_responders], [non_posters, message_to_non_responders]]:
-        if not message or 0 ==  len(recipients): 
-            continue
-
-        these_headers = [headers] * len(recipients)
-        live_flag = [args.live_run] * len(recipients)
-        base_urls = [url] * len(recipients)
-        bot_ids = [bot_id] * len(recipients)
-
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-
-            messages = [message + f" (Post: {url}{team_name}/pl/{args.post_id})"] * len(recipients)
-            print(f"Sending message to {len(recipients)} recipients: '{messages[0]}'")
-
-            results = executor.map( send_dm_to_all_in_df, 
-                                    recipients['id'].values,
-                                    recipients['username'].values, 
-                                    base_urls,
-                                    bot_ids,
-                                    these_headers, 
-                                    messages, 
-                                    live_flag,
-                                    bot_name
-                        )
-
-    return all_users
+    if args.post_id:
+        get_single_response(args, url, headers)
+    if args.keyword:
+        get_multiple_responses(args, url, headers, team_id)
 
 if __name__ == "__main__":
     valid_sort_criteria = ["nickname", "first_name", "last_name", "emoji", "username"]
@@ -415,10 +441,19 @@ if __name__ == "__main__":
                         type=str,
                         help="ID of post (can be a file with post ID on first line) from which to get reactions.  (Copy the link of the desired post, the ID is the alphanumeric string after the last forward slash)"
                         )
+
+    parser.add_argument('--keyword', 
+                        '-k',
+                        required=False,
+                        default="",
+                        type=str,
+                        help="Keyword to search channel and iterate over matching posts"
+                        )                        
+
     parser.add_argument('--emoji', 
                         '-e',
-                        required=True,
                         type=str,
+                        default="*",
                         help="Name of emoji ('*' for any)"
                         )
 
