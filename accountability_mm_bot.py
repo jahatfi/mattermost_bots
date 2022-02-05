@@ -36,21 +36,26 @@ def get_channels(base_url, headers):
     channel_url = base_url+"api/v4/channels"
     
     print(f"Retrieving info for channels, starting with all channels")
-    resp = requests.get(channel_url, headers=headers)
-    #print(resp.text)
-    new_dict = json.loads(resp.text)
-    
-    all_channels += new_dict
+    while True:
+        headers["page"] = page
+        resp = requests.get(channel_url, headers=headers)
+        #print(resp.text)
+        new_dict = json.loads(resp.text)
+        
+        all_channels += new_dict
 
 
-    all_channels = pd.DataFrame(all_channels)
-    cols_to_drop = all_channels.columns
-    cols_to_drop = list(set(cols_to_drop) - set(cols_to_keep))
-    all_channels.drop(cols_to_drop, axis=1, inplace=True)
-    #rows_to_keep = all_channels['username'].isin(usernames)
-    #all_channels = all_channels[rows_to_keep]
-    #pprint.pprint(all_channels)
-    return all_channels    
+        all_channels = pd.DataFrame(all_channels)
+        cols_to_drop = all_channels.columns
+        cols_to_drop = list(set(cols_to_drop) - set(cols_to_keep))
+        all_channels.drop(cols_to_drop, axis=1, inplace=True)
+        #rows_to_keep = all_channels['username'].isin(usernames)
+        #all_channels = all_channels[rows_to_keep]
+        #pprint.pprint(all_channels)
+        if all_channels.empty:
+            print("Failed")
+        pprint.pprint(all_channels)
+        return all_channels    
 # ==============================================================================
 def get_users(users_url, headers, usernames, channels, results_per_page):
     """
@@ -179,25 +184,43 @@ def send_dm_to_all_in_df(   user_id,
 
     #return dm_info
 #==============================================================================    
-def get_multiple_responses(args, url, headers, team_id):
+def search_hashtags(args, url, headers, team_id, channels):
     reaction_url = f"{url}api/v4/teams/{team_id}/posts/search"
+    results = pd.DataFrame()
     data = {
-    "is_or_search": False,
-    "time_zone_offset": 0,
-    "include_deleted_channels": True,
-    "page": 0,
-    "per_page": 60
+        #"is_or_search": False,
+        #"time_zone_offset": 0,
+        #"include_deleted_channels": True,
+        "per_page": 60
     }
-    data["terms"] = args.keyword #+ "&in:local_announcements"
-    pprint.pprint(data)
+    for channel_index, channel_id in enumerate(channels['id'].values):
+        get_posts_url = f"{url}api/v4/channels/{channel_id}/posts"
+        for page in range(6):
+            print(f"Getting Page {page} of {channels.iloc[channel_index]['name']} posts")
+            #headers['page'] = page
+            resp = requests.get(   get_posts_url+f"?page={page}", 
+                                    headers=headers,
+                                    data=json.dumps(data)
+                                )
+            if resp.status_code < 200 or resp.status_code > 299:
+                print("Error")
+                print(f"URL was '{reaction_url}'.  See the problem?")  
+                print(resp.text)          
 
-    resp = requests.post(reaction_url, headers=headers,data=json.dumps(data))
-    if resp.status_code < 200 or resp.status_code > 299:
-        pprint.pprint(json.loads(resp.text))
-        print(f"URL was '{reaction_url}'.  See the problem?")
-        sys.exit(-1)
-    all_matching_posts = json.loads(resp.text)
-    print(all_matching_posts)
+            else:
+                posts = json.loads(resp.text)
+                messages = pd.DataFrame(posts['posts'], index=None).T
+                desired_messages = messages[messages['hashtags'].str.contains(args.keyword)]
+                print(f"Found {len(desired_messages)} results")
+                if results.empty:
+                    results = desired_messages[["id", "create_at", "message", "hashtags"]]
+                else:
+                    results = results.append(desired_messages[["id", "create_at", "message", "hashtags"]])
+                #headers["before"] = posts["prev_post_id"]
+                print(posts["prev_post_id"])
+    results = results.reset_index(drop=True)
+    pprint.pprint(results)    
+    return(results)
 #==============================================================================    
 def get_single_response(args, url, headers):
 
@@ -350,19 +373,30 @@ def main(parser):
     if not args.post_id and not args.keyword:
         print("Not post ID or keyword provided. Returning.")
         return
-
-    print(f"Post ID: {args.post_id}")
+    if args.post_id:
+        print(f"Post ID: {args.post_id}")
 
     if args.channels:
-        print(args.channels)
-        channels = get_channels(url, headers)
-        rows_to_keep = channels['name'].isin(args.channels)
-        channels = channels[rows_to_keep]
+        channels = pd.DataFrame()
+        channel_url = url+f"api/v4/teams/{team_id}/channels/search"
+        payload = {}
+
+        for channel in args.channels:
+            payload["term"] = channel
+            resp = requests.post(channel_url, headers=headers, data=json.dumps(payload))
+            if resp.status_code >= 200 and resp.status_code < 400:
+                channels = channels.append(pd.DataFrame(json.loads(resp.text)))
+            else:
+                print(f"Couldn't find channel {channel}")
+
         if channels.empty:
-            print(f"Could not find any of the channels provided: {args.channels}")
-            print("Exiting.")
-            sys.exit(1)        
+            print(f"Can't find any channels that match any of {args.channels}")
+            sys.exit(1)
+        channels = channels[['id', 'name']]
+        print("All matching channels:")
+        pprint.pprint(channels)
         filter_on_channels = True
+
            
     if args.username_file:
         with open(args.username_file, 'r') as callsign_file:
@@ -413,7 +447,7 @@ def main(parser):
     if args.post_id:
         get_single_response(args, url, headers)
     if args.keyword:
-        get_multiple_responses(args, url, headers, team_id)
+        search_hashtags(args, url, headers, team_id, channels)
 
 if __name__ == "__main__":
     valid_sort_criteria = ["nickname", "first_name", "last_name", "emoji", "username"]
