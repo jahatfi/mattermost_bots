@@ -67,7 +67,7 @@ def get_users(users_url, headers, usernames, channels, results_per_page):
     Otherwise, if only a list of usernames OR channels is provided,
     return those users.
     """
-    cols_to_keep = ['id', 'username', 'email', 'first_name', 'nickname', 'last_name']
+    cols_to_keep = ['id', 'username', 'email', 'first_name', 'nickname', 'last_name', 'status']
     page = 0
     all_users = []
     
@@ -370,11 +370,7 @@ def main(parser):
         with open(args.post_id, "r") as post_id_file:
             args.post_id = post_id_file.readline().strip()
 
-    if not args.post_id and not args.keyword:
-        print("Not post ID or keyword provided. Returning.")
-        return
-    if args.post_id:
-        print(f"Post ID: {args.post_id}")
+
 
     if args.channels:
         channels = pd.DataFrame()
@@ -407,6 +403,22 @@ def main(parser):
 
     users_url = url + "api/v4/users"
     all_users = get_users(users_url, headers, usernames, channels, results_per_page)
+    user_status_url = url + "api/v4/users/status/ids"
+    ids = all_users['id'].values.tolist()
+    resp = requests.post(user_status_url, headers=headers, data=json.dumps(ids))
+    if resp.status_code >= 200 and resp.status_code <= 399:
+        status = pd.DataFrame(json.loads(resp.text))
+        status = status.rename(columns = {'user_id':'id'})
+
+        all_users = all_users.merge(status[['id', 'status', 'manual']], on='id', how="left")
+    pprint.pprint(all_users)
+    pprint.pprint(resp)
+
+    if not args.post_id and not args.keyword:
+        print("Not post ID or keyword provided. Returning.")
+        return
+    if args.post_id:
+        print(f"Post ID: {args.post_id}")
 
     if args.emoji == "*":
         all_users["Emoji Response(s)"] = ""
