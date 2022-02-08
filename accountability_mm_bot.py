@@ -219,6 +219,8 @@ def send_accountability_message(args,
                                 url, 
                                 headers, 
                                 all_users, 
+                                bot_id,
+                                bot_name,
                                 message_to_non_responders, 
                                 message_to_responders
                                 ):
@@ -258,30 +260,30 @@ def send_accountability_message(args,
         if not message or 0 ==  len(recipients): 
             continue
 
-        these_headers = [headers] * len(recipients)
-        live_flag = [args.live_run] * len(recipients)
-        base_urls = [url] * len(recipients)
-        bot_ids = [bot_id] * len(recipients)
-        bot_name = [bot_name] * len(recipients)
+        headers_list = [headers] * len(recipients)
+        live_flag_list = [args.live_run] * len(recipients)
+        base_url_list = [url] * len(recipients)
+        bot_id_list = [bot_id] * len(recipients)
+        bot_name_list = [bot_name] * len(recipients)
 
         if args.live_run:
 
             with concurrent.futures.ThreadPoolExecutor() as executor:
 
-                messages = [message + f" (Post: {url}{team_name}/pl/{args.post_id})"] * len(recipients)
-                print(f"Live Run: Sending message: '{messages[0]}'")
+                message_list = [message + f" (Post: {url}{team_name}/pl/{args.post_id})"] * len(recipients)
+                print(f"Live Run: Sending message: '{message_list[0]}'")
                 print(f"To {len(recipients)}:")
                 pprint.pprint(recipients)
 
                 results = executor.map( send_dm_to_all_in_df, 
                                         recipients['id'].values,
                                         recipients['username'].values, 
-                                        base_urls,
-                                        bot_ids,
-                                        these_headers, 
-                                        messages, 
-                                        live_flag,
-                                        bot_name
+                                        base_url_list,
+                                        bot_id_list,
+                                        headers_list, 
+                                        message_list, 
+                                        live_flag_list,
+                                        bot_name_list
                                         )
         else:
             print(f"Dry Run: Would send message: '{messages[0]}'")
@@ -469,6 +471,7 @@ def main(parser):
                                                 url, 
                                                 headers, 
                                                 all_users,
+                                                bot_id,
                                                 message_to_non_responders,
                                                 message_to_responders
                                                 )
