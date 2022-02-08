@@ -132,4 +132,3 @@ def log_failure_and_exit_if_failed(url, resp, message):
         print(message)
         print(f"URL was '{url}'.  See the problem?")
         sys.exit(-1)  
-

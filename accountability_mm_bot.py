@@ -264,21 +264,29 @@ def get_single_response(args, url, headers):
         base_urls = [url] * len(recipients)
         bot_ids = [bot_id] * len(recipients)
 
-        with concurrent.futures.ThreadPoolExecutor() as executor:
+        if args.live_run:
 
-            messages = [message + f" (Post: {url}{team_name}/pl/{args.post_id})"] * len(recipients)
-            print(f"Sending message to {len(recipients)} recipients: '{messages[0]}'")
+            with concurrent.futures.ThreadPoolExecutor() as executor:
 
-            results = executor.map( send_dm_to_all_in_df, 
-                                    recipients['id'].values,
-                                    recipients['username'].values, 
-                                    base_urls,
-                                    bot_ids,
-                                    these_headers, 
-                                    messages, 
-                                    live_flag,
-                                    bot_name
-                        )
+                messages = [message + f" (Post: {url}{team_name}/pl/{args.post_id})"] * len(recipients)
+                print(f"Live Run: Sending message: '{messages[0]}'")
+                print(f"To {len(recipients)}:")
+                pprint.pprint(recipients)
+
+                results = executor.map( send_dm_to_all_in_df, 
+                                        recipients['id'].values,
+                                        recipients['username'].values, 
+                                        base_urls,
+                                        bot_ids,
+                                        these_headers, 
+                                        messages, 
+                                        live_flag,
+                                        bot_name
+                                        )
+        else:
+            print(f"Dry Run: Would send message: '{messages[0]}'")
+            print(f"To {len(recipients)}:")
+            pprint.pprint(recipients)
 
     return all_users    
 # ==============================================================================
