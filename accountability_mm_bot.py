@@ -225,7 +225,7 @@ def get_single_response(args, url, headers):
         sys.exit(-1)
     reactions = json.loads(resp.text)
 
-    all_users  =  process_reactions(args, reactions, users_url, headers, all_users)
+    all_users  =  process_reactions(args, reactions, reaction_url, headers, all_users)
     all_users.sort_values(args.sort_on, inplace=True)
 
     if args.emoji == "*":
