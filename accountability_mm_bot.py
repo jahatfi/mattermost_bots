@@ -164,23 +164,16 @@ def send_dm_to_all_in_df(   user_id,
     """
     Send dm to all users in the provided dataframe
     """    
-    #user_name = row[1][1]
-    #user_id = row[1][0]    
-    if not live_run:
-        print(f"DRY RUN, send message as {bot_name}:\n'{message}'")
-        print(f"To: {user_name:<20} User ID: {user_id}")
-        
-    else:
-
-        print(f"LIVE RUN, send message as {bot_name} to: {user_name} {user_id}")
-        channel_id = create_dm_channel(base_url, bot_id, user_id, header)
-        header['Content-type'] = "application/json"
-        #print("Firing post")
-        dm_info = requests.post(base_url+"api/v4/posts", 
-                                    headers=header,
-                                    data=json.dumps({"channel_id": channel_id, "message":message}))
-        #pprint.pprint(f"dm_info: {dm_info}")
-        dm_info = json.loads(dm_info.text)
+    print(f"LIVE RUN, send message as {bot_name} to: {user_name} {user_id}")
+    channel_id = create_dm_channel(base_url, bot_id, user_id, header)
+    header['Content-type'] = "application/json"
+    return
+    #print("Firing post")
+    dm_info = requests.post(base_url+"api/v4/posts", 
+                                headers=header,
+                                data=json.dumps({"channel_id": channel_id, "message":message}))
+    #pprint.pprint(f"dm_info: {dm_info}")
+    dm_info = json.loads(dm_info.text)
 
     #return dm_info
 #==============================================================================    
@@ -263,6 +256,7 @@ def get_single_response(args, url, headers):
         live_flag = [args.live_run] * len(recipients)
         base_urls = [url] * len(recipients)
         bot_ids = [bot_id] * len(recipients)
+        bot_name = [bot_name] * len(recipients)
 
         if args.live_run:
 
@@ -464,10 +458,10 @@ def main(parser):
             sys.exit(1)
 
     if args.post_id:
-        get_single_response(args, url, headers)
+        all_users = get_single_response(args, url, headers)
     if args.keyword:
-        search_hashtags(args, url, headers, team_id, channels)
-
+        hashtagged_posts = search_hashtags(args, url, headers, team_id, channels)
+    
 if __name__ == "__main__":
     valid_sort_criteria = ["nickname", "first_name", "last_name", "emoji", "username"]
 
