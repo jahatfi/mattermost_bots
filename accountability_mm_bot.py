@@ -170,6 +170,7 @@ def send_dm_to_all_in_df(   user_id,
         print(f"LIVE RUN, send message as {bot_name} to: {user_name} {user_id}")
         channel_id = create_dm_channel(base_url, bot_id, user_id, header)
         header['Content-type'] = "application/json"
+        return
         #print("Firing post")
         dm_info = requests.post(base_url+"api/v4/posts", 
                                     headers=header,
@@ -370,7 +371,7 @@ def main(parser):
         live_flag = [args.live_run] * len(recipients)
         base_urls = [url] * len(recipients)
         bot_ids = [bot_id] * len(recipients)
-
+        bot_name = [bot_name] * len(recipients)
         with concurrent.futures.ThreadPoolExecutor() as executor:
 
             messages = [message + f" (Post: {url}{team_name}/pl/{args.post_id})"] * len(recipients)
