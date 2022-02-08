@@ -286,7 +286,7 @@ def send_accountability_message(args,
                                         bot_name_list
                                         )
         else:
-            print(f"Dry Run: Would send message: '{message_list[0]}'")
+            print(f"Dry Run: Would send message: '{message}'")
             print(f"To {len(recipients)}:")
             pprint.pprint(recipients)
 
