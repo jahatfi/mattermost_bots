@@ -412,7 +412,6 @@ def main(parser):
 
         all_users = all_users.merge(status[['id', 'status', 'manual']], on='id', how="left")
     pprint.pprint(all_users)
-    pprint.pprint(resp)
 
     if not args.post_id and not args.keyword:
         print("Not post ID or keyword provided. Returning.")
