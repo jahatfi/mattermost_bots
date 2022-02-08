@@ -1,3 +1,5 @@
+*.md
 *.txt
 *.svg
 *.png
+nohup.out
