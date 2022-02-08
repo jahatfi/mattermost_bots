@@ -239,21 +239,21 @@ def send_accountability_message(args,
     if args.emoji == "*":
         posters = all_users[all_users["Emoji Response(s)"] != ""]
         print(f"The following {len(posters)} users HAVE posted at least 1 emoji on post {args.post_id}")
-        pprint.pprint(posters['username'])            
+        pprint.pprint(posters[['username', 'first_name', 'last_name']])
     else:
         posters = all_users[all_users[f"Responded with {args.emoji}?"] == "Yes"]
         print(f"The following {len(posters)} users HAVE posted the '{args.emoji}' emoji on post {args.post_id}")
-        pprint.pprint(posters['username'])            
+        pprint.pprint(posters[['username', 'first_name', 'last_name']])
 
     if args.emoji == "*":
         non_posters = all_users[all_users["Emoji Response(s)"] == ""]
         print(f"The following {len(non_posters)} users have NOT posted any emoji on post {args.post_id}")
-        pprint.pprint(non_posters['username'])
+        pprint.pprint(non_posters[['username', 'first_name', 'last_name']])
 
     else:
         non_posters = all_users[all_users[f"Responded with {args.emoji}?"] == "No"]
         print(f"The following {len(non_posters)} users have NOT posted the '{args.emoji}' emoji on post {args.post_id}")
-        pprint.pprint(non_posters['username'])         
+        pprint.pprint(non_posters[['username', 'first_name', 'last_name']])
 
     # Send provided DM
     for recipients, message in [[posters, message_to_responders], [non_posters, message_to_non_responders]]:
@@ -287,8 +287,8 @@ def send_accountability_message(args,
                                         )
         else:
             print(f"Dry Run: Would send message: '{message}'")
-            print(f"To {len(recipients)}:")
-            pprint.pprint(recipients)
+            print(f"To {len(recipients)} recipients:")
+            pprint.pprint(recipients[["username", "first_name", "last_name"]])
 
     return all_users    
 # ==============================================================================
