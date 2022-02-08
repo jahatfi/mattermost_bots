@@ -215,7 +215,7 @@ def search_hashtags(args, url, headers, team_id, channels):
     pprint.pprint(results)    
     return(results)
 #==============================================================================    
-def get_single_response(args, url, headers):
+def get_single_response(args, url, headers, all_users):
 
     reaction_url = f"{url}/api/v4/posts/{args.post_id}/reactions"
     resp = requests.get(reaction_url, headers=headers)
@@ -458,7 +458,7 @@ def main(parser):
             sys.exit(1)
 
     if args.post_id:
-        all_users = get_single_response(args, url, headers)
+        all_users = get_single_response(args, url, headers, all_users)
     if args.keyword:
         hashtagged_posts = search_hashtags(args, url, headers, team_id, channels)
     
