@@ -215,7 +215,13 @@ def search_hashtags(args, url, headers, team_id, channels):
     pprint.pprint(results)    
     return(results)
 #==============================================================================    
-def get_single_response(args, url, headers, all_users):
+def send_accountability_message(args, 
+                                url, 
+                                headers, 
+                                all_users, 
+                                message_to_non_responders, 
+                                message_to_responders
+                                ):
 
     reaction_url = f"{url}/api/v4/posts/{args.post_id}/reactions"
     resp = requests.get(reaction_url, headers=headers)
@@ -457,11 +463,19 @@ def main(parser):
             print("Exiting")
             sys.exit(1)
 
+    # If a post id is provided, 
     if args.post_id:
-        all_users = get_single_response(args, url, headers, all_users)
+        all_users = send_accountability_message(args, 
+                                                url, 
+                                                headers, 
+                                                all_users,
+                                                message_to_non_responders,
+                                                message_to_responders
+                                                )
     if args.keyword:
         hashtagged_posts = search_hashtags(args, url, headers, team_id, channels)
     
+# ==============================================================================
 if __name__ == "__main__":
     valid_sort_criteria = ["nickname", "first_name", "last_name", "emoji", "username"]
 
