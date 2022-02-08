@@ -472,6 +472,7 @@ def main(parser):
                                                 headers, 
                                                 all_users,
                                                 bot_id,
+                                                bot_name,
                                                 message_to_non_responders,
                                                 message_to_responders
                                                 )
