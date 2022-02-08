@@ -43,8 +43,6 @@ def get_channels(base_url, headers):
         new_dict = json.loads(resp.text)
         
         all_channels += new_dict
-
-
         all_channels = pd.DataFrame(all_channels)
         cols_to_drop = all_channels.columns
         cols_to_drop = list(set(cols_to_drop) - set(cols_to_keep))
@@ -163,16 +161,12 @@ def send_dm_to_all_in_df(   user_id,
                             bot_name):
     """
     Send dm to all users in the provided dataframe
-    """    
-    print(f"LIVE RUN, send message as {bot_name} to: {user_name} {user_id}")
+    """
+    print(f"Dm'ing {user_name}")
     channel_id = create_dm_channel(base_url, bot_id, user_id, header)
-    header['Content-type'] = "application/json"
-    return
-    #print("Firing post")
     dm_info = requests.post(base_url+"api/v4/posts", 
                                 headers=header,
                                 data=json.dumps({"channel_id": channel_id, "message":message}))
-    #pprint.pprint(f"dm_info: {dm_info}")
     dm_info = json.loads(dm_info.text)
 
     #return dm_info
@@ -221,6 +215,7 @@ def send_accountability_message(args,
                                 all_users, 
                                 bot_id,
                                 bot_name,
+                                team_name,
                                 message_to_non_responders, 
                                 message_to_responders
                                 ):
@@ -257,23 +252,26 @@ def send_accountability_message(args,
 
     # Send provided DM
     for recipients, message in [[posters, message_to_responders], [non_posters, message_to_non_responders]]:
-        if not message or 0 ==  len(recipients): 
+        if not message or 0 ==  len(recipients):
             continue
 
-        headers_list = [headers] * len(recipients)
-        live_flag_list = [args.live_run] * len(recipients)
-        base_url_list = [url] * len(recipients)
-        bot_id_list = [bot_id] * len(recipients)
-        bot_name_list = [bot_name] * len(recipients)
-
         if args.live_run:
+            # This happens twice if messaging both groups but that's fine.
+            headers['Content-type'] = "application/json"
+            # The lists below don't change in content for responders v. non-
+            # responders, but they DO change in length.
+            headers_list = [headers] * len(recipients)
+            live_flag_list = [args.live_run] * len(recipients)
+            base_url_list = [url] * len(recipients)
+            bot_id_list = [bot_id] * len(recipients)
+            bot_name_list = [bot_name] * len(recipients)
+            message_list = [message + f" (Post: {url}{team_name}/pl/{args.post_id})"] * len(recipients)
+
+            print(f"Live Run: Sending message: '{message_list[0]}'")
+            print(f"To {len(recipients)} recipients:")
+            pprint.pprint(recipients[['username', 'first_name', 'last_name']])
 
             with concurrent.futures.ThreadPoolExecutor() as executor:
-
-                message_list = [message + f" (Post: {url}{team_name}/pl/{args.post_id})"] * len(recipients)
-                print(f"Live Run: Sending message: '{message_list[0]}'")
-                print(f"To {len(recipients)}:")
-                pprint.pprint(recipients)
 
                 results = executor.map( send_dm_to_all_in_df, 
                                         recipients['id'].values,
@@ -473,6 +471,7 @@ def main(parser):
                                                 all_users,
                                                 bot_id,
                                                 bot_name,
+                                                team_name,
                                                 message_to_non_responders,
                                                 message_to_responders
                                                 )
