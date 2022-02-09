@@ -75,6 +75,8 @@ def search_hashtags(args, url, headers, team_id, channels):
             else:
                 posts = json.loads(resp.text)
                 messages = pd.DataFrame(posts['posts'], index=None).T
+                pprint.pprint(messages['message'])
+                #print(messages.columns)
                 desired_messages = messages[messages['hashtags'].str.contains(args.keyword)]
                 print(f"Found {len(desired_messages)} results")
                 if results.empty:

@@ -255,3 +255,44 @@ def send_dm(base_url, channel_id, header, message):
     dm_info = json.loads(dm_info.text)
     return dm_info
 
+#==============================================================================    
+def search_keyword(args, url, headers, team_id, channels):
+    reaction_url = f"{url}api/v4/teams/{team_id}/posts/search"
+    results = pd.DataFrame()
+    data = {
+        #"is_or_search": False,
+        #"time_zone_offset": 0,
+        #"include_deleted_channels": True,
+        "per_page": 60
+    }
+    for channel_index, channel_id in enumerate(channels['id'].values):
+        get_posts_url = f"{url}api/v4/channels/{channel_id}/posts"
+        for page in range(6):
+            print(f"Getting Page {page} of {channels.iloc[channel_index]['name']} posts")
+            #headers['page'] = page
+            resp = requests.get(   get_posts_url+f"?page={page}", 
+                                    headers=headers,
+                                    data=json.dumps(data)
+                                )
+            if resp.status_code < 200 or resp.status_code > 299:
+                print("Error")
+                print(f"URL was '{reaction_url}'.  See the problem?")  
+                print(resp.text)          
+
+            elif resp.text:
+                posts = json.loads(resp.text)
+                messages = pd.DataFrame(posts['posts'], index=None).T
+                #print(messages.columns)
+                if 'message' not in messages:
+                    break
+                desired_messages = messages[messages['message'].str.contains(args.keyword)]
+                print(f"Found {len(desired_messages)} results")
+                if results.empty:
+                    results = desired_messages[["id", "create_at", "message", "hashtags"]]
+                else:
+                    results = results.append(desired_messages[["id", "create_at", "message", "hashtags"]])
+                #headers["before"] = posts["prev_post_id"]
+                print(posts["prev_post_id"])
+    results = results.reset_index(drop=True)
+    #pprint.pprint(results)    
+    return results
