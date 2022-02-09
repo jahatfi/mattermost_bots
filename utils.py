@@ -6,6 +6,8 @@ import json
 from datetime import datetime
 import pprint
 import sys
+import pandas as pd
+pd.set_option('display.width', 1000)
 # ==============================================================================
 # Reference: https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-argparse
 def str2bool(v):
@@ -20,7 +22,19 @@ def str2bool(v):
         return False
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
-        
+# ==============================================================================
+# Reference: 
+# https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-argparse
+def valid_sorter(v):
+    """
+    Validates that argparse sort-on argument is valid value.
+    """
+    valid_sort_criteria = ["nickname", "first_name", "last_name", "username", "emoji"]
+    if v.lower() in valid_sort_criteria:
+        return v.lower()
+
+    else:
+        print(f"Got {v}")        
 # ==============================================================================
 def parse_creds_from_file(authentication_info):
     """
@@ -132,3 +146,112 @@ def log_failure_and_exit_if_failed(url, resp, message):
         print(message)
         print(f"URL was '{url}'.  See the problem?")
         sys.exit(-1)  
+        raise argparse.ArgumentTypeError(f'Must be one of {valid_sort_criteria}')
+# ==============================================================================
+def get_channels(base_url, headers):
+    """
+    Returns a Pandas DataFrame of all channels on this server, but with only
+    a subset of the columns that are useful for identifying the channels.
+    """
+    cols_to_keep = ['id', 'name', 'display_name']
+    page = 0
+    all_channels = []
+    channel_url = base_url+"api/v4/channels"
+    
+    print(f"Retrieving info for channels, starting with all channels")
+    while True:
+        headers["page"] = page
+        resp = requests.get(channel_url, headers=headers)
+        #print(resp.text)
+        new_dict = json.loads(resp.text)
+        
+        all_channels += new_dict
+        all_channels = pd.DataFrame(all_channels)
+        cols_to_drop = all_channels.columns
+        cols_to_drop = list(set(cols_to_drop) - set(cols_to_keep))
+        all_channels.drop(cols_to_drop, axis=1, inplace=True)
+        #rows_to_keep = all_channels['username'].isin(usernames)
+        #all_channels = all_channels[rows_to_keep]
+        #pprint.pprint(all_channels)
+        if all_channels.empty:
+            print("Failed")
+        pprint.pprint(all_channels)
+        return all_channels    
+# ==============================================================================
+def get_users(users_url, headers, usernames, channels, results_per_page):
+    """
+    Returns a Pandas DataFrame of all users on this server, but with only
+    a subset of the columns that are useful for identifying the users.
+
+    If both usernames and channels_ids provided, return the intersection of the 
+    users in both those channels AND the username list.
+    Otherwise, if only a list of usernames OR channels is provided,
+    return those users.
+    """
+    cols_to_keep = ['id', 'username', 'email', 'first_name', 'nickname', 'last_name', 'status']
+    page = 0
+    all_users = []
+    
+    if any(channels):
+        for _, channel in channels.iterrows():
+            channel_name = channel['name']
+            channel_id = channel['id']
+            while True:
+              
+                print(f"Retrieving info for users in channel {channel_name}, page {page} ({results_per_page} entries per page)")
+                resp = requests.get(users_url+f"?page={page}&in_channel={channel_id}", headers=headers)
+                new_dict = json.loads(resp.text)
+                all_users += new_dict
+                if len(new_dict) < results_per_page:
+                    break
+                page += 1
+
+    else:
+        while True:
+            
+            print(f"Retrieving info for users, page {page} ({results_per_page} entries per page)")
+            resp = requests.get(users_url+f"?page={page}", headers=headers)
+            new_dict = json.loads(resp.text)
+            
+            all_users += new_dict
+            if len(new_dict) < results_per_page:
+                break
+            page += 1        
+
+
+    all_users = pd.DataFrame(all_users)
+    cols_to_drop = all_users.columns
+    cols_to_drop = list(set(cols_to_drop) - set(cols_to_keep))
+    all_users.drop(cols_to_drop, axis=1, inplace=True)
+    if usernames:
+        rows_to_keep = all_users['username'].isin(usernames)
+        all_users = all_users[rows_to_keep]
+    #pprint.pprint(all_users)
+    all_users.drop_duplicates(inplace=True)
+
+    return all_users
+
+# ==============================================================================
+def get_bot_info(base_url, bot_id, headers):
+    """
+    Return bot info for this bot, None if it doesn't exist
+    """
+    all_bots = requests.get(base_url+"api/v4/bots", headers=headers)
+    all_bots = json.loads(all_bots.text)
+    all_bots = pd.DataFrame(all_bots)
+    pprint.pprint(all_bots)
+
+    return all_bots[all_bots['user_id'] == bot_id]
+
+#==============================================================================
+def send_dm(base_url, channel_id, header, message):
+    """
+    Send dm to the provided channel
+    """    
+    header['Content-type'] = "application/json"
+    dm_info = requests.post(base_url+"api/v4/posts", 
+                                headers=header,
+                                data=json.dumps({"channel_id": channel_id, "message":message}))
+    dm_info = json.loads(dm_info.text)
+    return dm_info
+
