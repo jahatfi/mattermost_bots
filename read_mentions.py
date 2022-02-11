@@ -1,23 +1,9 @@
 #!/usr/bin/env python3
-
-print("Please gve me a second to import all these dependencies")
-import requests 
-import json
-import pprint
 import argparse
-import pandas as pd
-import sys
-import concurrent.futures
-from datetime import datetime
-from datetime import date
-
-import time
-from utils import *
-import os
 
 #https://www.tutorialgateway.org/python-strptime/
 formats = [
-    '%m/%d/%y %H%M',        #'12/31/18 23:59:58'
+    '%m/%d/%y %H%M',        #'12/31/18 23:59'
     '%d/%m/%y %H:%M:%S',    #'31/12/18 23:59:58'
     '%d-%m-%Y %H:%M:%S',    #'10-12-2017 19:12:58' 
     '%d %B %Y %H:%M',       #'31 December 19 18:00'
@@ -27,7 +13,7 @@ formats = [
     '%d/%m/%y'              #'31/12/19'
 ]
 
-def parse_task(message):
+def parse_task(post_id, message):
     tasks = []
     suspense = 0
     emojis = []
@@ -40,7 +26,7 @@ def parse_task(message):
             continue
         task = {}
         line = [x.strip() for x  in line.split("|")]
-        print(line)
+        #print(line)
         task['task_id'] = line[1]
         for this_format in formats:
             try:
@@ -51,18 +37,39 @@ def parse_task(message):
             except ValueError:
                 pass
         if 'suspense' not in task:
-            print("No format found!")
-            task['suspense'] = line[2]
+            print(f"'{line[2]}' is not a known date format, please use something like '12/31/18 23:59'")
+            continue
+            #task['suspense'] = line[2]
 
         emojis = [e for e in line[3].split() if ':' in e]
         task['emojis'] = emojis
 
-
         tasks.append(task)
         
-    pprint.pprint(tasks)
+    if tasks:
+        tasks = pd.DataFrame(tasks).dropna()
+        print("Returning tasks:")
+        pprint.pprint(tasks)     
+
+        return tasks
 # ==============================================================================
-def main(parser):      
+def genCmd(args, task):
+    print("genCMD")
+    print(args)
+    pprint.pprint(task)
+    cmd = f"python3 accountability_mm_bot.py -a {args.authentication_info}"
+    cmd += f" -c {args.channel}"
+    if args.message_to_non_responders:
+        cmd += f" -n {args.message_to_non_responders}"
+    if args.message_to_responders:
+        cmd += f" -m {args.message_to_responders}"
+
+    cmd += f" -d {task['suspense']}"
+    cmd += f"-l True"
+    print(cmd)
+    return task
+# ==============================================================================
+def main(args):      
     """
     Provided:
     1. Mattermost server URL,
@@ -76,7 +83,6 @@ def main(parser):
     Then, separately display all users who have NOT posted any emoji ('*'),
     or in the case of a specific emoji, show those who have NOT reacted with that emoji.
     """                                              
-    args = parser.parse_args()
     filter_on_usernames = False
     filter_on_channels = False
     results_per_page = 60 # Can up up to 200
@@ -92,6 +98,7 @@ def main(parser):
     url = url.strip('"').strip("'")
     team_id = team_id.strip('"').strip("'")
     token = token.strip('"').strip("'")
+
 
     
     headers = { 
@@ -147,15 +154,24 @@ def main(parser):
     results = search_keyword(args, url, headers, team_id, channels)
     #pprint.pprint(pd.DataFrame(json.loads(resp.text)))
     pprint.pprint(results['message'])
-    #https://towardsdatascience.com/heres-the-most-efficient-way-to-iterate-through-your-pandas-dataframe-4dad88ac92ee
-    results_dict = results.to_dict('records')
-    for row in results_dict:
-        print(row)
-        parse_task(row['message'])
+    results = pd.DataFrame(results.to_dict('records'))
+    tasks = results.apply(lambda row: parse_task(row['id'], row['message']), axis=1)
+    tasks = tasks.dropna()
+    tasks['channel'] = channels['name'].values[0]
+    if tasks.empty:
+        print("No tasks")
+        return
+    users_url = url + "api/v4/users"
+    users = get_users(users_url, headers, [], channels, results_per_page)
+    pprint.pprint(users)
+    pprint.pprint(tasks)
+    for task in tasks:
+        genCmd(args, task)
+
 # ==============================================================================
+
 if __name__ == "__main__":
     valid_sort_criteria = ["nickname", "first_name", "last_name", "emoji", "username"]
-
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--authentication-info', 
@@ -177,6 +193,36 @@ if __name__ == "__main__":
                         default="",
                         type=str,
                         help="Keyword to search channel and iterate over matching posts"
+                        )      
+    parser.add_argument('--message-to-non-responders', 
+                        '-n',
+                        required=False,
+                        default="",
+                        type=str,
+                        help="File with message (e.g. plain text or markdown) to DM users who did NOT post one of the specified emojis"
+                        )  
+    parser.add_argument('--message-to-responders', 
+                        '-m',
+                        required=False,
+                        default="",
+                        type=str,
+                        help="File with message (e.g. plain text or markdown) to DM users who DID post one of the specified emojis"
                         )                              
-    all_users = main(parser)        
+    args = parser.parse_args()
+    print("Please gve me a second to import all these dependencies")
+    import requests 
+    import json
+    import pprint
+    import pandas as pd
+    import sys
+    import concurrent.futures
+    from datetime import datetime
+    from datetime import date
+
+    import time
+    from utils import *
+    import os
+
+
+    all_users = main(args)        
 
