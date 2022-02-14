@@ -12,7 +12,7 @@ formats = [
     '%d %B %y',             #'31 December 19'
     '%d/%m/%y'              #'31/12/19'
 ]
-
+# ==============================================================================
 def parse_task(post_id, message):
     tasks = []
     suspense = 0
@@ -32,26 +32,35 @@ def parse_task(post_id, message):
             try:
                 task['suspense'] = datetime.strptime(line[2], this_format)
                 task['task_id'] += datetime.strftime(task['suspense'], "%d%b%y")
-                task['suspense'] = datetime.strftime(task['suspense'], "%m/%d/%Y %H:%M")
+                task['suspense'] = datetime.strftime(task['suspense'], 
+                                                    "%m/%d/%Y %H:%M")
                 break
             except ValueError:
                 pass
         if 'suspense' not in task:
-            print(f"'{line[2]}' is not a known date format, please use something like '12/31/18 23:59'")
+            print(f"'Bad date: '{line[2]}' try something like '12/31/18 23:59'")
             continue
             #task['suspense'] = line[2]
 
         emojis = [e for e in line[3].split() if ':' in e]
         task['emojis'] = emojis
+       
+        try:
+            task['approx time burden (min)'] = int(line[4])
+        except IndexError as e:
+            task['approx. time burden (min)'] = 15
 
         tasks.append(task)
         
     if tasks:
         tasks = pd.DataFrame(tasks).dropna()
-        print("Returning tasks:")
+        print(f"Returning tasks of type{type(tasks)}:")
         pprint.pprint(tasks)     
 
         return tasks
+    else:
+        #print("Returning empty DF")
+        return None
 # ==============================================================================
 def genCmd(args, task):
     print("genCMD")
@@ -63,9 +72,11 @@ def genCmd(args, task):
         cmd += f" -n {args.message_to_non_responders}"
     if args.message_to_responders:
         cmd += f" -m {args.message_to_responders}"
-
-    cmd += f" -d {task['suspense']}"
-    cmd += f"-l True"
+    if args.username_file:
+        cmd += f" -u {args.username_file}"
+    cmd += f" -d {task.suspense}"
+    cmd += f" -i {task.task_id}"
+    cmd += f" -l True"
     print(cmd)
     return task
 # ==============================================================================
@@ -81,7 +92,8 @@ def main(args):
     Show which users from the list of usernames/channels provided have reacted 
     to the specified post with any emoji ('*'), or the specified emoji.
     Then, separately display all users who have NOT posted any emoji ('*'),
-    or in the case of a specific emoji, show those who have NOT reacted with that emoji.
+    or in the case of a specific emoji, 
+    show those who have NOT reacted with that emoji.
     """                                              
     filter_on_usernames = False
     filter_on_channels = False
@@ -130,7 +142,7 @@ def main(args):
         pprint.pprint(this_bot)
         bot_id = this_bot['user_id'].values[0]
     else:
-        print(f"It appears that the bot with ID {bot_id} does not exist on {url}")
+        print(f"Could not find bot with ID {bot_id} on {url}")
         sys.exit(-1)         
 
     channel_url = url+f"api/v4/teams/{team_id}/channels/search"
@@ -148,68 +160,104 @@ def main(args):
     pprint.pprint(channels)
     channel_id = channels['id'].values[0]
 
+    users_url = url + "api/v4/users"
+    all_users = get_users(users_url, headers, [], channels, results_per_page)
+    pprint.pprint(all_users)
+
     search_url = f"{url}api/v4/teams/{team_id}/channels/search"
     payload["term"] = "update"
 
     results = search_keyword(args, url, headers, team_id, channels)
-    #pprint.pprint(pd.DataFrame(json.loads(resp.text)))
+    user_id = all_users[all_users["username"]=="midnight"]["id"].values[0]
+    results = results[results["user_id"] == user_id]
+    #pprint.pprint(pd.DataFrame(json.loads(resp.text))
+    pprint.pprint(results.columns)
     pprint.pprint(results['message'])
     results = pd.DataFrame(results.to_dict('records'))
-    tasks = results.apply(lambda row: parse_task(row['id'], row['message']), axis=1)
-    tasks = tasks.dropna()
+    tasks = pd.DataFrame()
+    for row in results.itertuples():
+        task = parse_task(row.id, row.message)
+        try:
+            if task and any(task):
+                tasks = tasks.append(task)
+        except TypeError as e:
+            print(f"TypeError: {e}")
+        except ValueError as e:
+            if any(task):
+                tasks = tasks.append(task)
+
+
+    print(f"Got tasks, type is {type(tasks)}")
+    print(tasks.values)
     tasks['channel'] = channels['name'].values[0]
     if tasks.empty:
         print("No tasks")
         return
-    users_url = url + "api/v4/users"
-    users = get_users(users_url, headers, [], channels, results_per_page)
-    pprint.pprint(users)
+
     pprint.pprint(tasks)
-    for task in tasks:
+    for task in tasks.itertuples():
         genCmd(args, task)
 
+    
 # ==============================================================================
 
 if __name__ == "__main__":
-    valid_sort_criteria = ["nickname", "first_name", "last_name", "emoji", "username"]
+    valid_sort_criteria = ["nickname", 
+                            "first_name", 
+                            "last_name", 
+                            "emoji", 
+                            "username"]
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--authentication-info', 
                         '-a',
                         required=True,
                         type=str,
-                        help="File with (one per line): (1 server url, (2 team id, (3 auth token, (4 bot name"
+                        help="File with (one per line):"+\
+                        "(1 server url, (2 team id, (3 auth token, (4 bot name"
                         )
 
     parser.add_argument('--channel', 
                         '-c',
                         required=True,
                         type=str,
-                        help="Channel name(s) from which to get users: -c channel1 channel2. If provided with a list of usernames, this script will pull the intersection of users from each."
+                        help="Channel name(s) from which to get users:+"\
+                        "-c channel1 channel2. "\
+                        "If provided with a list of usernames,"\
+                        " this script will pull the union of users from each."
                         )
     parser.add_argument('--keyword', 
                         '-k',
                         required=False,
                         default="",
                         type=str,
-                        help="Keyword to search channel and iterate over matching posts"
+                        help="Keyword to search channel"
                         )      
     parser.add_argument('--message-to-non-responders', 
                         '-n',
                         required=False,
                         default="",
                         type=str,
-                        help="File with message (e.g. plain text or markdown) to DM users who did NOT post one of the specified emojis"
+                        help="File with message (e.g. plain text or markdown)"\
+                        " to DM users who did NOT post one of the specified emojis"
                         )  
     parser.add_argument('--message-to-responders', 
                         '-m',
                         required=False,
                         default="",
                         type=str,
-                        help="File with message (e.g. plain text or markdown) to DM users who DID post one of the specified emojis"
-                        )                              
+                        help="File with message (e.g. plain text or markdown)"\
+                        " to DM users who DID post one of the specified emojis"
+                        )                         
+    parser.add_argument('--username-file', 
+                        '-u',
+                        required=False,
+                        default="",
+                        type=str,
+                        help="File with all mattermost usernames to report on.  If provided with a list of channels, will pull intersection of  from each"
+                        )                             
     args = parser.parse_args()
-    print("Please gve me a second to import all these dependencies")
+    print("Please give me a second to import all these dependencies")
     import requests 
     import json
     import pprint
@@ -222,6 +270,7 @@ if __name__ == "__main__":
     import time
     from utils import *
     import os
+    pd.set_option('display.width', 1000)
 
 
     all_users = main(args)        

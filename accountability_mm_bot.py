@@ -24,7 +24,7 @@ def process_reactions(args, reactions, users_url, headers, all_users):
     #pprint.pprint(reactions)
     for reaction in reactions:
         if args.emoji == "*":
-            all_users.loc[all_users['id'] == reaction['user_id'], "Emoji Response(s)"] += reaction['emoji_name']+"|"
+            all_users.loc[all_users['id'] == reaction['user_id'], "Emojis_Response"] += reaction['emoji_name']+"|"
         elif args.emoji == reaction['emoji_name']:
             all_users.loc[all_users['id'] == reaction['user_id'], f"Responded with {args.emoji}?"] = "Yes"
     return all_users
@@ -111,8 +111,15 @@ def send_accountability_message(args,
     all_users  =  process_reactions(args, reactions, reaction_url, headers, all_users)
     all_users.sort_values(args.sort_on, inplace=True)
 
+    with open("csv_log.csv","a+") as csv_log:
+        csv_log.write
+        for row in all_users.itertuples():
+            # Date, Tasker, Name, response emojis, comments 
+            print(row)
+            csv_log.write(f"{datetime.today().date()},{args.id},{row.username},{row.Emojis_Response},,\n")
+
     if args.emoji == "*":
-        posters = all_users[all_users["Emoji Response(s)"] != ""]
+        posters = all_users[all_users["Emojis_Response"] != ""]
         print(f"The following {len(posters)} users HAVE posted at least 1 emoji on post {args.post_id}")
         pprint.pprint(posters[['username', 'first_name', 'last_name']])
     else:
@@ -121,7 +128,7 @@ def send_accountability_message(args,
         pprint.pprint(posters[['username', 'first_name', 'last_name']])
 
     if args.emoji == "*":
-        non_posters = all_users[all_users["Emoji Response(s)"] == ""]
+        non_posters = all_users[all_users["Emojis_Response"] == ""]
         print(f"The following {len(non_posters)} users have NOT posted any emoji on post {args.post_id}")
         pprint.pprint(non_posters[['username', 'first_name', 'last_name']])
 
@@ -129,6 +136,7 @@ def send_accountability_message(args,
         non_posters = all_users[all_users[f"Responded with {args.emoji}?"] == "No"]
         print(f"The following {len(non_posters)} users have NOT posted the '{args.emoji}' emoji on post {args.post_id}")
         pprint.pprint(non_posters[['username', 'first_name', 'last_name']])
+
 
     # Send provided DM
     for recipients, message in [[posters, message_to_responders], [non_posters, message_to_non_responders]]:
@@ -279,13 +287,8 @@ def main(parser):
         pprint.pprint(channels)
         filter_on_channels = True
 
-           
-    if args.username_file:
-        with open(args.username_file, 'r') as callsign_file:
-            usernames = callsign_file.readlines()
-            usernames = [c.lower().strip() for c in usernames]
-    else:
-        usernames = []
+    usernames = read_usernames(args.username_file)       
+
 
     users_url = url + "api/v4/users"
     all_users = get_users(users_url, headers, usernames, channels, results_per_page)
@@ -306,7 +309,7 @@ def main(parser):
         print(f"Post ID: {args.post_id}")
 
     if args.emoji == "*":
-        all_users["Emoji Response(s)"] = ""
+        all_users["Emojis_Response"] = ""
     else:
         all_users[f"Responded with {args.emoji}?"] = "No"
 
@@ -332,6 +335,7 @@ def main(parser):
     # Now (regardless of name update or not) create bot_name for easier reading
     bot_name = this_bot['username']
 
+    """
     if args.new_bot_icon:
         if not update_bot_icon( url, 
                                 this_bot['username'].values[0], 
@@ -340,7 +344,7 @@ def main(parser):
                                 headers):
             print("Exiting")
             sys.exit(1)
-
+    """
     # If a post id is provided, 
     if args.post_id:
         all_users = send_accountability_message(args, 
@@ -440,12 +444,12 @@ if __name__ == "__main__":
                         type=str,
                         help="Temporary bot display name to use for this execution"
                         )   
-    parser.add_argument('--new-bot-icon', 
+    parser.add_argument('--id', 
                         '-i',
                         required=False,
                         default="",
                         type=str,
-                        help="Temporary bot display avatar (SVG only)"
+                        help="ID for this tasker"
                         )  
     parser.add_argument('--delay', 
                         '-d',

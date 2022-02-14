@@ -288,11 +288,23 @@ def search_keyword(args, url, headers, team_id, channels):
                 desired_messages = messages[messages['message'].str.contains(args.keyword)]
                 print(f"Found {len(desired_messages)} results")
                 if results.empty:
-                    results = desired_messages[["id", "create_at", "message", "hashtags"]]
+                    results = desired_messages[["id", "create_at", "user_id", "message", "hashtags"]]
                 else:
-                    results = results.append(desired_messages[["id", "create_at", "message", "hashtags"]])
+                    print(desired_messages.columns)
+                    results = results.append(desired_messages[["id", "create_at", "user_id", "message", "hashtags"]])
                 #headers["before"] = posts["prev_post_id"]
                 print(posts["prev_post_id"])
     results = results.reset_index(drop=True)
     #pprint.pprint(results)    
     return results
+
+def read_usernames(username_file):
+
+    if username_file:
+        with open(username_file, 'r') as callsign_file:
+            usernames = callsign_file.readlines()
+            usernames = [c.lower().strip() for c in usernames]
+    else:
+        usernames = []
+
+    return usernames
