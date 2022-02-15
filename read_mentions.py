@@ -41,6 +41,8 @@ def provideFeedbackErroneousInvocation(error_msg,
         print(f"Couldn't post response.  URL was '{post_url}'")
         print("Headers:")
         pprint.pprint(headers)
+        print("Data:")
+        pprint.pprint(data)
         sys.exit(-1)
     
     print("Reacting...")
@@ -87,9 +89,9 @@ def parse_task(post_id, message, channel_id, url, headers, bot_id):
         line = [x.strip() for x  in line.split("|")]
         task['task_id'] = line[1]
 
-        if not re.fullmatch("[a-zA-Z0-9\-]{1,10}", task['task_id']):
+        if not re.fullmatch("[a-zA-Z0-9\-]{1,20}", task['task_id']):
             error_msg = f"Error: Something seems sketchy with the taskID:\n`{task['task_id']}`\n"
-            error_msg += " Make sure it's alphanumeric (dashes okay) and < 10 chars"
+            error_msg += " Make sure it's alphanumeric (dashes okay) and < 21 chars"
             provideFeedbackErroneousInvocation(error_msg,
                                                 url, 
                                                 headers,
@@ -173,8 +175,10 @@ def genCmd(args, task):
         cmd += f" -u {args.username_file}"
     cmd += f" -d {task.suspense}"
     cmd += f" -i {task.task_id}"
-    cmd += f" -l True"
+    cmd += f" -l False"
+    print("Running cmd:")
     print(cmd)
+    subprocess.Run(cmd, shell=True)
     return task
 # ==============================================================================
 def main(args):      
@@ -218,7 +222,6 @@ def main(args):
             }
     # Get this team name
     team_url = f"{url}api/v4/teams/{team_id}"
-
     team_info = requests.get(team_url, headers=headers)
     if team_info.status_code == 200:
         team_info = json.loads(team_info.text)
@@ -238,6 +241,7 @@ def main(args):
         print(f"Could not find bot with ID {bot_id} on {url}")
         sys.exit(-1)         
 
+    # Search for provided channels
     channel_url = url+f"api/v4/teams/{team_id}/channels/search"
     payload = {}
     payload["term"] = args.channel
@@ -252,28 +256,31 @@ def main(args):
         print("No matching channels")
         sys.exit(1)
     channels = channels[['id', 'name']]
-    print("All matching channels:")
-    pprint.pprint(channels)
+    #print("All matching channels:")
+    #pprint.pprint(channels)
     channel_id = channels['id'].values[0]
 
-
+    # Get all users on these channels
+    print("Getting users...")
     users_url = url + "api/v4/users"
     all_users = get_users(users_url, headers, [], channels, results_per_page)
-    pprint.pprint(all_users)
+    #pprint.pprint(all_users)
 
     search_url = f"{url}api/v4/teams/{team_id}/channels/search"
     payload["term"] = "update"
 
+    print("Searching posts...")
     results = search_keyword(args, url, headers, team_id, channels)
     #TODO Uncomment the 2 lines below to lock this down
     #user_id = all_users[all_users["username"]=="midnight"]["id"].values[0]
     #results = results[results["user_id"] == user_id]
     
     
-    pprint.pprint(results.columns)
-    pprint.pprint(results['message'])
+    #pprint.pprint(results.columns)
+    #pprint.pprint(results['message'])
     results = pd.DataFrame(results.to_dict('records'))
     tasks = pd.DataFrame()
+    print("Checking post reactions, this might take a minute.")
     for row in results.itertuples():
         # Only parse task IF we haven't parsed it yet!
         reaction_url = f"{url}/api/v4/posts/{row.id}/reactions"
@@ -321,15 +328,13 @@ def main(args):
                 print(f"Couldn't react via{reaction_url}'.  See the problem?")
                 sys.exit(-1)
             else:
-                print(resp.text)
+                pprint.pprint(resp.text)
 
-    print(f"Got tasks, type is {type(tasks)}")
-    print(tasks.values)
-    tasks['channel'] = channels['name'].values[0]
     if tasks.empty:
         print("No new tasks not already reacted to.")
         return
 
+    tasks['channel'] = channels['name'].values[0]
     pprint.pprint(tasks)
     for task in tasks.itertuples():
         print(task)
@@ -409,6 +414,7 @@ if __name__ == "__main__":
     import pprint
     import requests 
     import concurrent.futures
+    import subprocess
 
     from datetime import datetime
     from datetime import date
