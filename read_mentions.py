@@ -20,6 +20,10 @@ def provideFeedbackErroneousInvocation(error_msg,
                                         data,
                                         post_id,
                                         bot_id):
+    """
+    Downvote and reply to bad invocations, 
+    along with help info for how to call this bot.
+    """
     print(error_msg)
     post_url = f"{url}api/v4/posts"
     msg = "\nYou seem to be having trouble invoking my auto-tasker capability.\n"\
@@ -56,6 +60,10 @@ def provideFeedbackErroneousInvocation(error_msg,
         print(resp.text)      
 # ==============================================================================
 def parse_task(post_id, message, channel_id, url, headers, bot_id):
+    """
+    Given a post, check for taskers in it, 
+    extracting relevant info from the message body
+    """
     tasks = []
     suspense = 0
     emojis = []
@@ -77,7 +85,6 @@ def parse_task(post_id, message, channel_id, url, headers, bot_id):
             continue
         task = {}
         line = [x.strip() for x  in line.split("|")]
-        #print(line)
         task['task_id'] = line[1]
 
         if not re.fullmatch("[a-zA-Z0-9\-]{1,10}", task['task_id']):
@@ -108,7 +115,6 @@ def parse_task(post_id, message, channel_id, url, headers, bot_id):
                                                 post_id,
                                                 bot_id)
             continue
-            #task['suspense'] = line[2]
 
         emojis = [e for e in line[3].split() if ':' in e]
         task['emojis'] = emojis
@@ -144,6 +150,9 @@ def parse_task(post_id, message, channel_id, url, headers, bot_id):
         return None
 # ==============================================================================
 def genCmd(args, task):
+    """
+    Generate the cmd to spawn the accountibility bot
+    """
     print("genCMD")
     """
     Check the task ID for anything sketchy!
@@ -209,14 +218,12 @@ def main(args):
             }
     # Get this team name
     team_url = f"{url}api/v4/teams/{team_id}"
-    #print(f"team url: {team_url}")
 
     team_info = requests.get(team_url, headers=headers)
     if team_info.status_code == 200:
         team_info = json.loads(team_info.text)
         team_name = team_info["name"]
-        #print(team_name)
-        #pprint.pprint(team_info)
+
     else:
         print(f"Cannot find the team {team_id} on this server.")
         print(team_info)
@@ -258,16 +265,17 @@ def main(args):
     payload["term"] = "update"
 
     results = search_keyword(args, url, headers, team_id, channels)
-    user_id = all_users[all_users["username"]=="midnight"]["id"].values[0]
-    results = results[results["user_id"] == user_id]
-    #pprint.pprint(pd.DataFrame(json.loads(resp.text))
+    #TODO Uncomment the 2 lines below to lock this down
+    #user_id = all_users[all_users["username"]=="midnight"]["id"].values[0]
+    #results = results[results["user_id"] == user_id]
+    
+    
     pprint.pprint(results.columns)
     pprint.pprint(results['message'])
     results = pd.DataFrame(results.to_dict('records'))
     tasks = pd.DataFrame()
     for row in results.itertuples():
         # Only parse task IF we haven't parsed it yet!
-        #print("Getting reactions")
         reaction_url = f"{url}/api/v4/posts/{row.id}/reactions"
         resp = requests.get(reaction_url, headers=headers)
         if resp.status_code < 200 or resp.status_code > 299:
@@ -275,11 +283,9 @@ def main(args):
             print(f"URL was '{reaction_url}'.  See the problem?")
             sys.exit(-1)
         reactions = pd.DataFrame(json.loads(resp.text))
-        #if not reactions.empty:
-        #    pprint.pprint(reactions)
+
         if not reactions.empty and bot_id in reactions['user_id'].values:
-            #print("JARVIS already reacted to this one")
-            #print(reactions)
+
             continue
 
         task = parse_task(row.id, 
