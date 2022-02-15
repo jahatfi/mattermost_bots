@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 import argparse
 
+emojis = [
+    ':+1:',
+    ':-1:',
+    ':white_check_mark:',
+    ':runnner:',
+    ':weightlifter:'
+]
+
 #https://www.tutorialgateway.org/python-strptime/
 formats = [
     '%m/%d/%y %H%M',        #'12/31/18 2359'
@@ -31,7 +39,8 @@ def provideFeedbackErroneousInvocation(error_msg,
     "`|Taskname|DD/MM/YYYY HH:MM|required emoji|number (int) of estimated"\
     " minutes to complete. `\n**Note**: All suspenses MUST be within 3 weeks."\
     "\nPlease test in ~test_channel. You'll see a :jarvis: reaction around"\
-    " the top of the hour when when your invocation is correct."\
+    " the top of the hour when when your invocation is correct.\n"\
+    f"Allowed emojis are {emojis}"
 
     data['message'] = error_msg + msg
 
@@ -118,8 +127,18 @@ def parse_task(post_id, message, channel_id, url, headers, bot_id):
                                                 bot_id)
             continue
 
-        emojis = [e for e in line[3].split() if ':' in e and len(e) < 20]
-        task['emojis'] = emojis
+        these_emojis = [e for e in line[3].split() if ':' in e in emojis]
+        task['emojis'] = these_emojis
+        if not task['emojis']:
+            error_msg = f"Error: bad emoji(s) in {line[3]}!"
+            print(error_msg)
+            provideFeedbackErroneousInvocation(error_msg,
+                                                url, 
+                                                headers,
+                                                data,
+                                                post_id,
+                                                bot_id)  
+            continue
        
         try:
             task['approx time burden (min)'] = int(line[4])
