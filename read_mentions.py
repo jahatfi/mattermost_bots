@@ -118,7 +118,7 @@ def parse_task(post_id, message, channel_id, url, headers, bot_id):
                                                 bot_id)
             continue
 
-        emojis = [e for e in line[3].split() if ':' in e]
+        emojis = [e for e in line[3].split() if ':' in e and len(e) < 20]
         task['emojis'] = emojis
        
         try:
