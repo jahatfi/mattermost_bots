@@ -175,10 +175,14 @@ def genCmd(args, task):
         cmd += f" -u {args.username_file}"
     cmd += f" -d {task.suspense}"
     cmd += f" -i {task.task_id}"
-    cmd += f" -l False"
-    print("Running cmd:")
-    print(cmd)
-    subprocess.Run(cmd, shell=True)
+    if args.live:
+        cmd += f" -l True"
+        print("Running cmd:")
+        print(cmd)
+        subprocess.Run(cmd, shell=True)
+    else:
+        print("Dry run, cmd was:")
+        print(cmd)
     return task
 # ==============================================================================
 def main(args):      
@@ -375,6 +379,13 @@ if __name__ == "__main__":
                         type=str,
                         help="Keyword to search channel"
                         )      
+    parser.add_argument('--live-run', 
+                        '-l',
+                        required=False,
+                        default=False,
+                        type=str2bool,
+                        help="Live (True) or dry (False:default) run"
+                        )                           
     parser.add_argument('--message-to-non-responders', 
                         '-n',
                         required=False,
