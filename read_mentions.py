@@ -3,7 +3,8 @@ import argparse
 
 #https://www.tutorialgateway.org/python-strptime/
 formats = [
-    '%m/%d/%y %H%M',        #'12/31/18 23:59'
+    '%m/%d/%y %H%M',        #'12/31/18 2359'
+    '%m/%d/%y %H:%M',       #'12/31/18 23:59'
     '%d/%m/%y %H:%M:%S',    #'31/12/18 23:59:58'
     '%d-%m-%Y %H:%M:%S',    #'10-12-2017 19:12:58' 
     '%d %B %Y %H:%M',       #'31 December 19 18:00'
@@ -13,11 +14,61 @@ formats = [
     '%d/%m/%y'              #'31/12/19'
 ]
 # ==============================================================================
-def parse_task(post_id, message):
+def provideFeedbackErroneousInvocation(error_msg,
+                                        url, 
+                                        headers,
+                                        data,
+                                        post_id,
+                                        bot_id):
+    print(error_msg)
+    post_url = f"{url}api/v4/posts"
+    msg = "\nYou seem to be having trouble invoking my auto-tasker capability.\n"\
+    "Invocation should start by @'ing this bot, followed by one task per line:\n"\
+    "`|Taskname|DD/MM/YYYY HH:MM|required emoji|number (int) of estimated"\
+    " minutes to complete. `\n**Note**: All suspenses MUST be within 3 weeks."\
+    "\nPlease test in ~test_channel. You'll see a :jarvis: reaction around"\
+    " the top of the hour when when your invocation is correct."\
+
+    data['message'] = error_msg + msg
+
+    resp = requests.post(post_url, headers=headers, data=json.dumps(data))
+    if resp.status_code < 200 or resp.status_code > 299:
+        pprint.pprint(json.loads(resp.text))
+        print(f"Couldn't post response.  URL was '{post_url}'")
+        print("Headers:")
+        pprint.pprint(headers)
+        sys.exit(-1)
+    
+    print("Reacting...")
+    reaction_url = f"{url}api/v4/reactions"
+    data = {}
+    data['post_id'] = post_id
+    data['user_id'] = bot_id
+    data['emoji_name'] = "-1"
+    resp = requests.post(reaction_url, 
+                        headers=headers, 
+                        data=json.dumps(data))
+    if resp.status_code < 200 or resp.status_code > 299:
+        pprint.pprint(json.loads(resp.text))
+        print(f"Couldn't react via {reaction_url}'.  See the problem?")
+        sys.exit(-1)
+    else:
+        print(resp.text)      
+# ==============================================================================
+def parse_task(post_id, message, channel_id, url, headers, bot_id):
     tasks = []
     suspense = 0
     emojis = []
     task_id = 0
+    #headers = {}
+    headers.pop('per_page')
+    headers.pop('include_deleted_channels')
+    headers.pop('is_or_search')
+    headers.pop('page')
+
+    data = {}
+    data['channel_id'] = channel_id
+    data['root_id'] = post_id
     #https://www.geeksforgeeks.org/get-current-date-using-python/
     today = date.today()
 
@@ -28,17 +79,34 @@ def parse_task(post_id, message):
         line = [x.strip() for x  in line.split("|")]
         #print(line)
         task['task_id'] = line[1]
+
+        if not re.fullmatch("[a-zA-Z0-9\-]{1,10}", task['task_id']):
+            error_msg = f"Error: Something seems sketchy with the taskID:\n`{task['task_id']}`\n"
+            error_msg += " Make sure it's alphanumeric (dashes okay) and < 10 chars"
+            provideFeedbackErroneousInvocation(error_msg,
+                                                url, 
+                                                headers,
+                                                data,
+                                                post_id,
+                                                bot_id)      
+            continue
+
+
         for this_format in formats:
             try:
-                task['suspense'] = datetime.strptime(line[2], this_format)
-                task['task_id'] += datetime.strftime(task['suspense'], "%d%b%y")
-                task['suspense'] = datetime.strftime(task['suspense'], 
-                                                    "%m/%d/%Y %H:%M")
-                break
+               task['suspense'] = datetime.strptime(line[2], this_format)
+               task['task_id'] += datetime.strftime(task['suspense'], "%d%b%y")
+               break
             except ValueError:
                 pass
         if 'suspense' not in task:
-            print(f"'Bad date: '{line[2]}' try something like '12/31/18 23:59'")
+            error_msg = f"Error: Bad date; try this format instead:\n`12/31/22 23:59`"
+            provideFeedbackErroneousInvocation(error_msg,
+                                                url, 
+                                                headers,
+                                                data,
+                                                post_id,
+                                                bot_id)
             continue
             #task['suspense'] = line[2]
 
@@ -50,7 +118,20 @@ def parse_task(post_id, message):
         except IndexError as e:
             task['approx. time burden (min)'] = 15
 
-        tasks.append(task)
+        if (task['suspense'] - datetime.now()).days >  22:
+            error_msg = f"Error: Suspense is more than 3 weeks from now!"
+            pprint.pprint(f"Suspense: {task['suspense']}" )
+            print(error_msg)
+            provideFeedbackErroneousInvocation(error_msg,
+                                                url, 
+                                                headers,
+                                                data,
+                                                post_id,
+                                                bot_id)            
+        else:
+            task['suspense'] = datetime.strftime(task['suspense'], "%m/%d/%Y %H:%M")
+            task['post_id'] = post_id
+            tasks.append(task)
         
     if tasks:
         tasks = pd.DataFrame(tasks).dropna()
@@ -64,6 +145,13 @@ def parse_task(post_id, message):
 # ==============================================================================
 def genCmd(args, task):
     print("genCMD")
+    """
+    Check the task ID for anything sketchy!
+    1. Special characters (&, ;, etc)
+    2. Non-printable characters
+    3. ID longer than necessary (10+ characters)
+    TODO: How to limit the NUMBER of children spawned to prevent a DOS?
+    """    
     print(args)
     pprint.pprint(task)
     cmd = f"python3 accountability_mm_bot.py -a {args.authentication_info}"
@@ -111,8 +199,6 @@ def main(args):
     team_id = team_id.strip('"').strip("'")
     token = token.strip('"').strip("'")
 
-
-    
     headers = { 
                 "is_or_search": "true",
                 "time_zone_offset": "0",
@@ -196,7 +282,12 @@ def main(args):
             #print(reactions)
             continue
 
-        task = parse_task(row.id, row.message)
+        task = parse_task(row.id, 
+                            row.message, 
+                            channel_id, 
+                            url, 
+                            copy.deepcopy(headers),
+                            bot_id)
         new_task = False
         try:
             if task and any(task):
@@ -216,10 +307,12 @@ def main(args):
             data['post_id'] = row.id
             data['user_id'] = bot_id
             data['emoji_name'] = "jarvis"
-            resp = requests.post(reaction_url, headers=headers, data=json.dumps(data))
+            resp = requests.post(reaction_url, 
+                                headers=headers, 
+                                data=json.dumps(data))
             if resp.status_code < 200 or resp.status_code > 299:
                 pprint.pprint(json.loads(resp.text))
-                print(f"Couldn't react. URL was '{reaction_url}'.  See the problem?")
+                print(f"Couldn't react via{reaction_url}'.  See the problem?")
                 sys.exit(-1)
             else:
                 print(resp.text)
@@ -233,8 +326,8 @@ def main(args):
 
     pprint.pprint(tasks)
     for task in tasks.itertuples():
+        print(task)
         genCmd(args, task)
-
     
 # ==============================================================================
 
@@ -258,10 +351,11 @@ if __name__ == "__main__":
                         '-c',
                         required=True,
                         type=str,
-                        help="Channel name(s) from which to get users:+"\
+                        help="Channel name(s) from which to get users: "\
                         "-c channel1 channel2. "\
                         "If provided with a list of usernames,"\
-                        " this script will pull the union of users from each."
+                        " this script will pull pull the intersection of users"\
+                        " found in the list and those found in both channels."
                         )
     parser.add_argument('--keyword', 
                         '-k',
@@ -291,24 +385,35 @@ if __name__ == "__main__":
                         required=False,
                         default="",
                         type=str,
-                        help="File with all mattermost usernames to report on.  If provided with a list of channels, will pull intersection of  from each"
+                        help="File with all mattermost usernames to report on."\
+                        "If provided with a list of channels,"\
+                        " will pull intersection of users from each"
                         )                             
     args = parser.parse_args()
+    print("Invocation correct!")
     print("Please give me a second to import all these dependencies")
-    import requests 
+
+    # Standard library
+    import os
+    import re
+    import sys
+    import copy
+    import time
     import json
     import pprint
-    import pandas as pd
-    import sys
+    import requests 
     import concurrent.futures
+
     from datetime import datetime
     from datetime import date
+ 
+    # Nonstandard libraries
+    import pandas as pd
 
-    import time
+    # Local imports
     from utils import *
-    import os
-    pd.set_option('display.width', 1000)
 
+    pd.set_option('display.width', 1000)
 
     all_users = main(args)        
 
