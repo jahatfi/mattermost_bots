@@ -155,10 +155,14 @@ def main(args):
         print(f"Couldn't find channel {channel}")
         return
 
+    if channels.empty:
+        print("No matching channels")
+        sys.exit(1)
     channels = channels[['id', 'name']]
     print("All matching channels:")
     pprint.pprint(channels)
     channel_id = channels['id'].values[0]
+
 
     users_url = url + "api/v4/users"
     all_users = get_users(users_url, headers, [], channels, results_per_page)
@@ -176,22 +180,55 @@ def main(args):
     results = pd.DataFrame(results.to_dict('records'))
     tasks = pd.DataFrame()
     for row in results.itertuples():
+        # Only parse task IF we haven't parsed it yet!
+        #print("Getting reactions")
+        reaction_url = f"{url}/api/v4/posts/{row.id}/reactions"
+        resp = requests.get(reaction_url, headers=headers)
+        if resp.status_code < 200 or resp.status_code > 299:
+            pprint.pprint(json.loads(resp.text))
+            print(f"URL was '{reaction_url}'.  See the problem?")
+            sys.exit(-1)
+        reactions = pd.DataFrame(json.loads(resp.text))
+        #if not reactions.empty:
+        #    pprint.pprint(reactions)
+        if not reactions.empty and bot_id in reactions['user_id'].values:
+            #print("JARVIS already reacted to this one")
+            #print(reactions)
+            continue
+
         task = parse_task(row.id, row.message)
+        new_task = False
         try:
             if task and any(task):
                 tasks = tasks.append(task)
+                new_task = True
         except TypeError as e:
             print(f"TypeError: {e}")
         except ValueError as e:
             if any(task):
                 tasks = tasks.append(task)
+                new_task = True
 
+        if new_task:
+            print("Reacting...")
+            reaction_url = f"{url}api/v4/reactions"
+            data = {}
+            data['post_id'] = row.id
+            data['user_id'] = bot_id
+            data['emoji_name'] = "jarvis"
+            resp = requests.post(reaction_url, headers=headers, data=json.dumps(data))
+            if resp.status_code < 200 or resp.status_code > 299:
+                pprint.pprint(json.loads(resp.text))
+                print(f"Couldn't react. URL was '{reaction_url}'.  See the problem?")
+                sys.exit(-1)
+            else:
+                print(resp.text)
 
     print(f"Got tasks, type is {type(tasks)}")
     print(tasks.values)
     tasks['channel'] = channels['name'].values[0]
     if tasks.empty:
-        print("No tasks")
+        print("No new tasks not already reacted to.")
         return
 
     pprint.pprint(tasks)
