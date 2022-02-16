@@ -104,10 +104,6 @@ def parse_task(post_id, message, channel_id, url, headers, bot_id):
     extracting relevant info from the message body
     """
     tasks = []
-    suspense = 0
-    emojis = []
-    task_id = 0
-    #headers = {}
     headers.pop('per_page')
     headers.pop('include_deleted_channels')
     headers.pop('is_or_search')
@@ -116,8 +112,6 @@ def parse_task(post_id, message, channel_id, url, headers, bot_id):
     data = {}
     data['channel_id'] = channel_id
     data['root_id'] = post_id
-    #https://www.geeksforgeeks.org/get-current-date-using-python/
-    today = date.today()
 
     for line in message.split('\n'):
         if not line.startswith("|"):
@@ -130,11 +124,11 @@ def parse_task(post_id, message, channel_id, url, headers, bot_id):
             error_msg = f"Error: Something seems sketchy with the taskID:\n`{task['task_id']}`\n"
             error_msg += " Make sure it's alphanumeric (dashes okay) and < 21 chars"
             provideFeedbackErroneousInvocation(error_msg,
-                                                url,
-                                                headers,
-                                                data,
-                                                post_id,
-                                                bot_id)
+                                               url,
+                                               headers,
+                                               data,
+                                               post_id,
+                                               bot_id)
             continue
 
 
@@ -155,7 +149,7 @@ def parse_task(post_id, message, channel_id, url, headers, bot_id):
                                                 bot_id)
             continue
 
-        these_emojis = [e for e in line[3].split() if ':' in e in emojis]
+        these_emojis = [e for e in line[3].split() if e in emojis]
         task['emojis'] = these_emojis
         if not task['emojis']:
             error_msg = f"Error: bad emoji(s) in {line[3]}!"

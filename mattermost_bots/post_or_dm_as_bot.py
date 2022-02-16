@@ -5,7 +5,7 @@ Make a post or send a DM as a bot
 import argparse
 from common import argparse_helpers
 # ==============================================================================
-def main(parser):
+def main(args):
     """
     Provided:
     1. Mattermost server URL,
@@ -16,8 +16,7 @@ def main(parser):
     6. Channel name
     Post the provided message in the provided channel as this bot
     """
-    args = parser.parse_args()
-    pprint.pprint(args)
+    #pprint.pprint(args)
     message = ""
     results_per_page = 60 # Can up up to 200
 
@@ -30,9 +29,9 @@ def main(parser):
 
     # Check if files exists
 
-    # First the authenication file
+    # First the authentication file
     try:
-        with open(args.authentication_info, "r") as authentication_info:
+        with open(args.authentication_info, "r"):
             pass
     except FileNotFoundError:
         print(f"Can't find {args.authentication_info}")
@@ -45,7 +44,7 @@ def main(parser):
     try:
         with open(args.message_file, "r") as message_file:
             message = message_file.read()
-    except FileNotFoundError as e:
+    except FileNotFoundError:
         print(f"Can't find {args.message_file}")
         sys.exit(1)
 
@@ -57,7 +56,7 @@ def main(parser):
                 "page": "0",
                 "per_page": str(results_per_page),
                 "Authorization" : f"Bearer {token}"
-            }
+                }
     if args.channel:
         channel_url = f"{url}api/v4/teams/{team_id}/channels/name/{args.channel}"
         fail_msg = f"Couldn't create/get channel {args.channel}"
@@ -94,8 +93,8 @@ def main(parser):
             print(f"DMing {args.user}\nMessage: '{message}'")
         post_url = url+"api/v4/posts"
         resp = requests.post(post_url,
-                                headers=headers,
-                                data=json.dumps({"channel_id": channel_id,
+                             headers=headers,
+                             data=json.dumps({"channel_id": channel_id,
                                                 "message":message}))
         fail_msg = f"Couldn't post/dm {args.channel}{args.user}"
         utils.log_failure_and_exit_if_failed(post_url, resp, fail_msg)
@@ -185,6 +184,7 @@ if __name__ == "__main__":
                         type=str,
                         help="User to DM.  Mututally exclusive with --channel option"
                         )
+    args = parser.parse_args()
 
     print("Invocation correct!")
     print("Please give me a second to import all these dependencies")
@@ -192,9 +192,8 @@ if __name__ == "__main__":
     import sys
     import json
     import time
-    import pprint
     import requests
-    from common import utils
+    from mattermost_bots.common import utils
     from datetime import datetime
 
-    main(parser)
+    main(args)

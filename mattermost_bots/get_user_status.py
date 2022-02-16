@@ -3,7 +3,7 @@ import argparse
 from common import argparse_helpers
 
 # ==============================================================================
-def main(parser):
+def main(args):
     """
     Provided:
     1. Mattermost server URL,
@@ -17,7 +17,6 @@ def main(parser):
     Then, separately display all users who have NOT posted any emoji ('*'),
     or in the case of a specific emoji, show those who have NOT reacted with that emoji.
     """
-    args = parser.parse_args()
     results_per_page = 60 # Can up up to 200
 
     usernames = []
@@ -33,7 +32,6 @@ def main(parser):
     team_id = team_id.strip('"').strip("'")
     token = token.strip('"').strip("'")
 
-    search_url = f"{url}api/v4/teams/{team_id}/posts/search"
     headers = {
                 "is_or_search": "true",
                 "time_zone_offset": "0",
@@ -41,7 +39,7 @@ def main(parser):
                 "page": "0",
                 "per_page": str(results_per_page),
                 "Authorization" : f"Bearer {token}"
-            }
+               }
     # Get this team name
     team_url = f"{url}api/v4/teams/{team_id}"
     #print(f"team url: {team_url}")
@@ -53,7 +51,7 @@ def main(parser):
         #print(team_name)
         #pprint.pprint(team_info)
     else:
-        print(f"Cannot find the team {team_id} on this server.")
+        print(f"Cannot find the team {team_name} on this server.")
         print(team_info)
         sys.exit(-1)
 
@@ -100,7 +98,7 @@ def main(parser):
     resp = requests.post(user_status_url, headers=headers, data=json.dumps(ids))
     if resp.status_code >= 200 and resp.status_code <= 399:
         status = pd.DataFrame(json.loads(resp.text))
-        status = status.rename(columns = {'user_id':'id'})
+        status = status.rename(columns={'user_id':'id'})
 
         all_users = all_users.merge(status[['id', 'status', 'manual']], on='id', how="left")
     else:
@@ -169,6 +167,7 @@ if __name__ == "__main__":
                         type=str,
                         help=f"File to append logs to."
                         )
+    args = parser.parse_args()
 
     print("Invocation correct!")
     print("Please give me a second to import all these dependencies")
@@ -183,5 +182,5 @@ if __name__ == "__main__":
     from common import utils
     import os
 
-    all_users = main(parser)
+    all_users = main(args)
 

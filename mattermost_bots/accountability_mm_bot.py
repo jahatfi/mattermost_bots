@@ -97,10 +97,10 @@ def send_accountability_message(args,
         sys.exit(-1)
     reactions = json.loads(resp.text)
 
-    all_users  =  process_reactions(args, reactions, reaction_url, headers, all_users)
+    all_users = process_reactions(args, reactions, reaction_url, headers, all_users)
     all_users.sort_values(args.sort_on, inplace=True)
 
-    with open("csv_log.csv","a+") as csv_log:
+    with open("csv_log.csv", "a+") as csv_log:
         csv_log.write
         for row in all_users.itertuples():
             # Date, Tasker, Name, response emojis, comments
@@ -165,7 +165,7 @@ def send_accountability_message(args,
 
     return all_users
 # ==============================================================================
-def main(parser):
+def main(args):
     """
     Provided:
     1. Mattermost server URL,
@@ -179,9 +179,7 @@ def main(parser):
     Then, separately display all users who have NOT posted any emoji ('*'),
     or in the case of a specific emoji, show those who have NOT reacted with that emoji.
     """
-    args = parser.parse_args()
-    filter_on_usernames = False
-    filter_on_channels = False
+
     results_per_page = 60 # Can up up to 200
     message_to_responders = ""
     message_to_non_responders = ""
@@ -440,6 +438,7 @@ if __name__ == "__main__":
                         type=str,
                         help="Delay until date/time in format: MM/DD/YYYY: HH:MM"
                         )
+    args = parser.parse_args()
 
     print("Invocation correct!")
     print("Please give me a second to import all these dependencies")
@@ -453,5 +452,5 @@ if __name__ == "__main__":
     import time
     from common import utils
     import os
-    all_users = main(parser)
+    all_users = main(args)
 

@@ -3,7 +3,6 @@
 Utility functions shared across modules
 """
 # Standard libs
-import argparse
 import json
 from datetime import datetime
 import pprint
@@ -106,9 +105,9 @@ def create_dm_channel(base_url, bot_id, bot_name, user_id, header):
     Return dm channel info between bot and user
     """
     header['Content-type'] = "application/json"
-    channel_info = requests.post(base_url+"api/v4/channels/direct",
-                                headers=header,
-                                data=json.dumps([bot_id, user_id]) )
+    channel_info = requests.post(   base_url+"api/v4/channels/direct",
+                                    headers=header,
+                                    data=json.dumps([bot_id, user_id]) )
 
     if channel_info.status_code < 200 or channel_info.status_code > 299:
         print(f"Failed to update icon for {bot_name}")
