@@ -3,4 +3,10 @@
 *.svg
 *.png
 *.md
+*.csv
+*.log
+*.env
+message_files/*
+tests/*
+
 nohup.out
