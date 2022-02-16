@@ -12,11 +12,11 @@ def main(parser):
     4. bot name,
     5. File of Mattermost usernames and/or channels
     6. An emoji (or '*' for any emoji),
-    Show which users from the list of usernames/channels provided have reacted 
+    Show which users from the list of usernames/channels provided have reacted
     to the specified post with any emoji ('*'), or the specified emoji.
     Then, separately display all users who have NOT posted any emoji ('*'),
     or in the case of a specific emoji, show those who have NOT reacted with that emoji.
-    """                                              
+    """
     args = parser.parse_args()
     results_per_page = 60 # Can up up to 200
 
@@ -34,7 +34,7 @@ def main(parser):
     token = token.strip('"').strip("'")
 
     search_url = f"{url}api/v4/teams/{team_id}/posts/search"
-    headers = { 
+    headers = {
                 "is_or_search": "true",
                 "time_zone_offset": "0",
                 "include_deleted_channels": "false",
@@ -63,7 +63,7 @@ def main(parser):
         pprint.pprint(this_bot)
     else:
         print(f"It appears that the bot with ID {bot_id} does not exist on {url}")
-        sys.exit(-1)         
+        sys.exit(-1)
 
     if args.channels:
         channels = pd.DataFrame()
@@ -85,7 +85,7 @@ def main(parser):
         print("All matching channels:")
         pprint.pprint(channels)
         filter_on_channels = True
-           
+
     if args.username_file:
         with open(args.username_file, 'r') as callsign_file:
             usernames = callsign_file.readlines()
@@ -128,51 +128,51 @@ def main(parser):
         pprint.pprint(log_lines[0:2])
 
     print(f"Appended data to {args.log_file}", )
-    
+
 # ==============================================================================
 if __name__ == "__main__":
     valid_sort_criteria = ["nickname", "first_name", "last_name", "emoji", "username"]
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--authentication-info', 
+    parser.add_argument('--authentication-info',
                         '-a',
                         required=True,
                         type=str,
                         help="File with (one per line): (1 server url, (2 team id, (3 auth token, (4 bot name"
                         )
 
-    parser.add_argument('--channels', 
+    parser.add_argument('--channels',
                         '-c',
                         nargs='*',
                         type=str,
                         help="Channel name(s) from which to get users: -c channel1 channel2. If provided with a list of usernames, this script will pull the intersection of users from each."
                         )
 
-    parser.add_argument('--username-file', 
+    parser.add_argument('--username-file',
                         '-u',
                         required=False,
                         default="",
                         type=str,
                         help="File with all mattermost usernames to report on.  If provided with a list of channels, will pull intersection of  from each"
                         )
-    parser.add_argument('--sort-on', 
+    parser.add_argument('--sort-on',
                         '-s',
                         default="username",
                         type=argparse_helpers.valid_sorter,
                         help=f"Sort results by one of {valid_sort_criteria}, 'username' is the default."
-                        )         
+                        )
 
-    parser.add_argument('--log-file', 
+    parser.add_argument('--log-file',
                         '-f',
                         default="log.csv",
                         type=str,
                         help=f"File to append logs to."
-                        )      
+                        )
 
     print("Invocation correct!")
     print("Please give me a second to import all these dependencies")
-    import requests 
+    import requests
     import json
     import pprint
     import pandas as pd
@@ -183,5 +183,5 @@ if __name__ == "__main__":
     from common import utils
     import os
 
-    all_users = main(parser)        
+    all_users = main(parser)
 
