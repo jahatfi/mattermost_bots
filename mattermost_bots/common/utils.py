@@ -1,40 +1,18 @@
 #!/usr/bin/env python3
-
-import argparse
-import requests
+"""
+Utility functions shared across modules
+"""
+# Standard libs
 import json
 from datetime import datetime
 import pprint
 import sys
-import pandas as pd
-pd.set_option('display.width', 1000)
-# ==============================================================================
-# Reference: https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-argparse
-def str2bool(v):
-    """
-    Validates that an argparse argument is a boolean value.
-    """
-    if isinstance(v, bool):
-       return v
-    if v.lower() in ('yes', 'true', 't', 'y', '1'):
-        return True
-    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
-        return False
-    else:
-        raise argparse.ArgumentTypeError('Boolean value expected.')
-# ==============================================================================
-# Reference: 
-# https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-argparse
-def valid_sorter(v):
-    """
-    Validates that argparse sort-on argument is valid value.
-    """
-    valid_sort_criteria = ["nickname", "first_name", "last_name", "username", "emoji"]
-    if v.lower() in valid_sort_criteria:
-        return v.lower()
 
-    else:
-        print(f"Got {v}")        
+# Non standard libs
+import pandas as pd
+import requests
+
+pd.set_option('display.width', 1000)
 # ==============================================================================
 def parse_creds_from_file(authentication_info):
     """
@@ -90,8 +68,8 @@ def update_bot_icon(base_url, bot_name, bot_id, new_image_file, headers):
     new_headers = {}
     new_headers['Authorization'] = headers['Authorization']
     resp = requests.post(base_url+"api/v4/bots/"+bot_id+'/'+"icon", 
-                        headers=new_headers,
-                        files=files
+                         headers=new_headers,
+                         files=files
             )
     
     if resp.status_code < 200 or resp.status_code > 299:
@@ -112,7 +90,7 @@ def return_computed_delay(target_time):
         return 0
     try:
         target_time = datetime.strptime(target_time, "%m/%d/%Y %H:%M")
-    except ValueError as e:
+    except ValueError:
         print("Invalid time format, time format must be MM/DD/YYYY: HH:MM")
         sys.exit(1)
     if target_time < datetime.now():
@@ -122,14 +100,14 @@ def return_computed_delay(target_time):
     print(f"I need to sleep until {target_time}, that's {delay}, or {delay.seconds} seconds")
     return delay.seconds
 # ==============================================================================
-def create_dm_channel(base_url, bot_id, user_id, header):
+def create_dm_channel(base_url, bot_id, bot_name, user_id, header):
     """
     Return dm channel info between bot and user
-    """    
+    """
     header['Content-type'] = "application/json"
-    channel_info = requests.post(base_url+"api/v4/channels/direct", 
-                                headers=header,
-                                data=json.dumps([bot_id, user_id]) )
+    channel_info = requests.post(   base_url+"api/v4/channels/direct",
+                                    headers=header,
+                                    data=json.dumps([bot_id, user_id]) )
 
     if channel_info.status_code < 200 or channel_info.status_code > 299:
         print(f"Failed to update icon for {bot_name}")
@@ -145,8 +123,7 @@ def log_failure_and_exit_if_failed(url, resp, message):
         pprint.pprint(resp)
         print(message)
         print(f"URL was '{url}'.  See the problem?")
-        sys.exit(-1)  
-        raise argparse.ArgumentTypeError(f'Must be one of {valid_sort_criteria}')
+        return -1
 # ==============================================================================
 def get_channels(base_url, headers):
     """
@@ -239,7 +216,7 @@ def get_bot_info(base_url, bot_id, headers):
     all_bots = requests.get(base_url+"api/v4/bots", headers=headers)
     all_bots = json.loads(all_bots.text)
     all_bots = pd.DataFrame(all_bots)
-    pprint.pprint(all_bots)
+    #pprint.pprint(all_bots)
 
     return all_bots[all_bots['user_id'] == bot_id]
 
@@ -290,14 +267,14 @@ def search_keyword(args, url, headers, team_id, channels):
                 if results.empty:
                     results = desired_messages[["id", "create_at", "user_id", "message", "hashtags"]]
                 else:
-                    print(desired_messages.columns)
+                    #print(desired_messages.columns)
                     results = results.append(desired_messages[["id", "create_at", "user_id", "message", "hashtags"]])
                 #headers["before"] = posts["prev_post_id"]
-                print(posts["prev_post_id"])
+                #print(posts["prev_post_id"])
     results = results.reset_index(drop=True)
     #pprint.pprint(results)    
     return results
-
+#==============================================================================    
 def read_usernames(username_file):
 
     if username_file:
