@@ -21,7 +21,10 @@ def main(args):
 
     usernames = []
     creds = utils.parse_creds_from_file(args.authentication_info)
-    url, team_id, token, bot_id = creds
+    if len(creds) == 4:
+        url, team_id, token, bot_id = creds
+    elif len(creds) == 5:
+        url, team_id, token, bot_id, sheet_id  = creds
     channels = []
 
     # Print current date + time for log review purposes
@@ -117,13 +120,15 @@ def main(args):
         print("No file found")
         need_headers = True
 
-    with open(args.log_file, "a+", newline='') as log:
-        log_lines = all_users.to_csv(index=False, header=need_headers)
-        for line in log_lines:
-            log.write(line)
+    with open(args.log_file, "a+", newline='', errors="ignore") as log:
+        log_lines = all_users.to_csv(log,
+                                     index=False,
+                                     header=need_headers,
+                                     errors="ignore")
+        #log.write(log_lines)
 
-        print("First line")
-        pprint.pprint(log_lines[0:2])
+        #print("First line")
+        #pprint.pprint(log_lines[0:2])
 
     print(f"Appended data to {args.log_file}", )
 
