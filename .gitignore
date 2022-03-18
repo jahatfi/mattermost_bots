@@ -4,7 +4,11 @@
 *.csv
 *.log
 *.env
+*.json
+*.pickle
+*.old
+*.bak
+*.pyc
 message_files/*
 tests/*
-
 nohup.out
