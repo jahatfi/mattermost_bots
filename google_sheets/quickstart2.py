@@ -143,12 +143,13 @@ def update_attendance(sheet, # Type: googleapiclient.discovery.Resource'
     range = tab_name + "!" + col_to_insert + "1:" + col_to_insert
     #print("Print it all")
     updates = [[date], [event_name]]
-    for callsign_index, callsign in enumerate(ordered_callsigns):
-        #print(f"{callsign_index} {callsign}")
+    for callsign_index, callsign in enumerate(ordered_callsigns[2:]):
         if callsign in attendence:
-            updates.append([attendence[callsign]])
+            entry = [attendence[callsign]]
         else:
-            updates.append([""])
+            entry = [""]
+        updates.append(entry)
+        print(f"{callsign_index+2} {callsign} '{entry}'")
 
     #pprint.pprint(updates)
     body = {}
