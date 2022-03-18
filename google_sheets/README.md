@@ -1,0 +1,1 @@
+Update a spreadsheet of attendance info.  See the included example spreadsheet.

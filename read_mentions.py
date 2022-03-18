@@ -309,7 +309,7 @@ def main(args):
     print("Getting users...")
     users_url = url + "api/v4/users"
     all_users = utils.get_users(users_url, headers, [], channels, results_per_page)
-    #pprint.pprint(all_users)
+    pprint.pprint(all_users)
 
     search_url = f"{url}api/v4/teams/{team_id}/channels/search"
     payload["term"] = "update"

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 from common import argparse_helpers
+from  google_sheets import quickstart2
 
 # ==============================================================================
 def process_reactions(args, reactions, users_url, headers, all_users):
@@ -73,7 +74,7 @@ def search_hashtags(args, url, headers, team_id, channels):
                 else:
                     results = results.append(desired_messages[["id", "create_at", "message", "hashtags"]])
                 #headers["before"] = posts["prev_post_id"]
-                print(posts["prev_post_id"])
+                #print(posts["prev_post_id"])
     results = results.reset_index(drop=True)
     pprint.pprint(results)
     return(results)
@@ -86,7 +87,8 @@ def send_accountability_message(args,
                                 bot_name,
                                 team_name,
                                 message_to_non_responders,
-                                message_to_responders
+                                message_to_responders,
+                                sheet_id
                                 ):
 
     reaction_url = f"{url}/api/v4/posts/{args.post_id}/reactions"
@@ -104,7 +106,7 @@ def send_accountability_message(args,
         csv_log.write
         for row in all_users.itertuples():
             # Date, Tasker, Name, response emojis, comments
-            print(row)
+            #print(row)
             csv_log.write(f"{datetime.today().date()},{args.id},{row.username},{row.Emojis_Response},,\n")
 
     if args.emoji == "*":
@@ -126,6 +128,22 @@ def send_accountability_message(args,
         print(f"The following {len(non_posters)} users have NOT posted the '{args.emoji}' emoji on post {args.post_id}")
         pprint.pprint(non_posters[['username', 'first_name', 'last_name']])
 
+    spreadsheet_updates = {}
+    for callsign in posters['username'].values:
+        spreadsheet_updates[callsign] = "P"
+    for callsign in non_posters['username'].values:
+        spreadsheet_updates[callsign] = "A"
+    #pprint.pprint(spreadsheet_updates)
+
+    service = quickstart2.get_service()
+    sheet = service.spreadsheets()
+    quickstart2.update_attendance(sheet,
+                                  sheet_id,
+                                  args.tab_name,
+                                  spreadsheet_updates,
+                                  str(datetime.today().date()),
+                                  args.post_id)
+    return
 
     # Send provided DM
     for recipients, message in [[posters, message_to_responders], [non_posters, message_to_non_responders]]:
@@ -186,7 +204,12 @@ def main(args):
 
     usernames = []
     creds = utils.parse_creds_from_file(args.authentication_info)
-    url, team_id, token, bot_id = creds
+    if len(creds) == 4:
+        url, team_id, token, bot_id = creds
+    elif len(creds) == 5:
+        url, team_id, token, bot_id, sheet_id  = creds
+
+
     channels = []
 
     # Print current date + time for log review purposes
@@ -340,7 +363,8 @@ def main(args):
                                                 bot_name,
                                                 team_name,
                                                 message_to_non_responders,
-                                                message_to_responders
+                                                message_to_responders,
+                                                sheet_id
                                                 )
     if args.keyword:
         hashtagged_posts = search_hashtags(args, url, headers, team_id, channels)
@@ -438,6 +462,19 @@ if __name__ == "__main__":
                         type=str,
                         help="Delay until date/time in format: MM/DD/YYYY: HH:MM"
                         )
+
+    parser.add_argument('--sheet-id',
+                        type=str,
+                        default="",
+                        help="ID of Google Sheet"
+                        )
+
+    parser.add_argument('--tab-name',
+                        '-t',
+                        type=str,
+                        default="Attendance",
+                        help="Name of tab in sheet"
+                        )
     args = parser.parse_args()
 
     print("Invocation correct!")
@@ -453,4 +490,5 @@ if __name__ == "__main__":
     from common import utils
     import os
     all_users = main(args)
+    pprint.pprint(all_users)
 

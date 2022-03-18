@@ -107,7 +107,7 @@ def main(args):
     all_users['Date'] = str(datetime.now())
     all_users.sort_values(args.sort_on, inplace=True)
 
-    pprint.pprint(all_users)
+    #pprint.pprint(all_users)
 
     need_headers = False
     try:
