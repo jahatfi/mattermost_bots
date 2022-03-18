@@ -4,6 +4,9 @@
 *.csv
 *.log
 *.env
+*.pickle
+*.bak
+*.json
 message_files/*
 tests/*
 
