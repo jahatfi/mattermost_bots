@@ -95,7 +95,12 @@ def main(args):
         usernames = []
 
     users_url = url + "api/v4/users"
-    all_users = utils.get_users(users_url, headers, usernames, channels, results_per_page)
+    all_users = utils.get_users(users_url,
+                                headers,
+                                usernames,
+                                channels,
+                                results_per_page)
+
     user_status_url = url + "api/v4/users/status/ids"
     ids = all_users['id'].values.tolist()
     resp = requests.post(user_status_url, headers=headers, data=json.dumps(ids))
@@ -106,32 +111,26 @@ def main(args):
         all_users = all_users.merge(status[['id', 'status', 'manual']], on='id', how="left")
     else:
         print(resp.text)
-    all_users.insert(0, "Date", '')
-    all_users['Date'] = str(datetime.now())
+    #all_users.insert(0, "Date", '')
+    #all_users['Date'] = str(datetime.now())
     all_users.sort_values(args.sort_on, inplace=True)
 
-    #pprint.pprint(all_users)
+    pprint.pprint(all_users)
 
-    need_headers = False
-    try:
-        with open(args.log_file, 'r') as _:
-            print("File exists")
-    except FileNotFoundError as e:
-        print("No file found")
-        need_headers = True
-
-    with open(args.log_file, "a+", newline='', errors="ignore") as log:
-        log_lines = all_users.to_csv(log,
-                                     index=False,
-                                     header=need_headers,
-                                     errors="ignore")
-        #log.write(log_lines)
-
-        #print("First line")
-        #pprint.pprint(log_lines[0:2])
-
-    print(f"Appended data to {args.log_file}", )
-
+    if args.log_file:
+        need_headers = False
+        try:
+            with open(args.log_file, 'r') as _:
+                print("File exists")
+        except FileNotFoundError as e:
+            print("No file found")
+            need_headers = True
+        with open(args.log_file, "a+", newline='', errors="ignore") as log:
+            log_lines = all_users.to_csv(log,
+                                        index=False,
+                                        header=need_headers,
+                                        errors="ignore")
+        print(f"Appended data to {args.log_file}")
 # ==============================================================================
 if __name__ == "__main__":
     valid_sort_criteria = ["nickname", "first_name", "last_name", "emoji", "username"]
@@ -168,9 +167,8 @@ if __name__ == "__main__":
 
     parser.add_argument('--log-file',
                         '-f',
-                        default="log.csv",
                         type=str,
-                        help=f"File to append logs to."
+                        help=f".csv File to append logs to."
                         )
     args = parser.parse_args()
 

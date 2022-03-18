@@ -246,7 +246,10 @@ def main(args):
     results_per_page = 60 # Can up up to 200
 
     creds = utils.parse_creds_from_file(args.authentication_info)
-    url, team_id, token, bot_id = creds
+    if len(creds) == 4:
+        url, team_id, token, bot_id = creds
+    elif len(creds) == 5:
+        url, team_id, token, bot_id, sheet_id  = creds
     channels = []
 
     # Print current date + time for log review purposes

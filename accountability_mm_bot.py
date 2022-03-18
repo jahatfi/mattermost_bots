@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import argparse
 from common import argparse_helpers
-from  google_sheets import quickstart2
 
 # ==============================================================================
 def process_reactions(args, reactions, users_url, headers, all_users):
@@ -39,7 +38,7 @@ def send_dm_to_all_in_df(   user_id,
 
     #return dm_info
 #==============================================================================
-def search_hashtags(args, url, headers, team_id, channels):
+def search_hashtags(args, url, headers, team_id, channels, pages):
     reaction_url = f"{url}api/v4/teams/{team_id}/posts/search"
     results = pd.DataFrame()
     data = {
@@ -50,7 +49,7 @@ def search_hashtags(args, url, headers, team_id, channels):
     }
     for channel_index, channel_id in enumerate(channels['id'].values):
         get_posts_url = f"{url}api/v4/channels/{channel_id}/posts"
-        for page in range(6):
+        for page in range(pages):
             print(f"Getting Page {page} of {channels.iloc[channel_index]['name']} posts")
             #headers['page'] = page
             resp = requests.get(   get_posts_url+f"?page={page}",
@@ -209,7 +208,6 @@ def main(args):
     elif len(creds) == 5:
         url, team_id, token, bot_id, sheet_id  = creds
 
-
     channels = []
 
     # Print current date + time for log review purposes
@@ -366,9 +364,34 @@ def main(args):
                                                 message_to_responders,
                                                 sheet_id
                                                 )
-    if args.keyword:
-        hashtagged_posts = search_hashtags(args, url, headers, team_id, channels)
 
+    # TODO This function below should be in a separate script
+    # as it's really a different feature
+    if args.keyword:
+        if not any(channels):
+            print("Please provide at least one channel name")
+        else:
+            hashtagged_posts = search_hashtags(args,
+                                               url,
+                                               headers,
+                                               team_id,
+                                               channels,
+                                               3)
+            hashtagged_posts.sort_values("create_at", inplace=True)
+            #hashtagged_posts['date'] = hashtagged_posts['create_at'].apply(datetime.fromtimestamp)
+            hashtagged_posts['date'] = pd.to_datetime(hashtagged_posts["create_at"],
+                                                      unit = 'ms')
+            #drop one column by name
+            hashtagged_posts.drop('create_at', axis=1, inplace=True)
+
+            #start = datetime(1970, 1, 1)  # Unix epoch start time
+            #hashtagged_posts['datetime'] = hashtagged_posts['create_at'].apply(lambda x: start + timedelta(seconds=x))
+            #hashtagged_posts['string_time'] = hashtagged_posts.datetime.apply(lambda x: x.strftime('%Y-%m-%d %H:%M:%S'))
+            #print(ts.strftime('%Y-%m-%d %H:%M:%S'))
+            pprint.pprint(hashtagged_posts)
+            for value in hashtagged_posts['id'].values:
+                print(value)
+            return hashtagged_posts
 # ==============================================================================
 if __name__ == "__main__":
     valid_sort_criteria = ["nickname", "first_name", "last_name", "emoji", "username"]
@@ -379,7 +402,7 @@ if __name__ == "__main__":
                         '-a',
                         required=True,
                         type=str,
-                        help="File with (one per line): (1 server url, (2 team id, (3 auth token, (4 bot name"
+                        help="File with (one per line): (1 server url, (2 team id, (3 auth token, (4 bot name and optionally (5 Google Sheet ID"
                         )
     parser.add_argument('--channels',
                         '-c',
@@ -473,7 +496,7 @@ if __name__ == "__main__":
                         '-t',
                         type=str,
                         default="Attendance",
-                        help="Name of tab in sheet"
+                        help="Name of tab in Google Sheet"
                         )
     args = parser.parse_args()
 
@@ -485,10 +508,12 @@ if __name__ == "__main__":
     import pandas as pd
     import sys
     import concurrent.futures
-    from datetime import datetime
+    from datetime import datetime, timedelta
     import time
     from common import utils
     import os
+    from google_sheets import quickstart2
+
     all_users = main(args)
     pprint.pprint(all_users)
 
