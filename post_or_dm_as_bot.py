@@ -193,7 +193,7 @@ if __name__ == "__main__":
     import json
     import time
     import requests
-    from mattermost_bots.common import utils
     from datetime import datetime
+    from common import utils
 
     main(args)
