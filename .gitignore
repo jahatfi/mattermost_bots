@@ -7,6 +7,7 @@
 *.pickle
 *.bak
 *.json
+*.pyc
 message_files/*
 tests/*
 
