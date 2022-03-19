@@ -87,10 +87,11 @@ def check_emoji_reactions(  args,
                             team_name,
                             message_to_non_responders,
                             message_to_responders,
-                            sheet_id
+                            sheet_id,
+                            post_id
                             ):
 
-    reaction_url = f"{url}/api/v4/posts/{args.post_id}/reactions"
+    reaction_url = f"{url}/api/v4/posts/{post_id}/reactions"
     resp = requests.get(reaction_url, headers=headers)
     if resp.status_code < 200 or resp.status_code > 299:
         pprint.pprint(json.loads(resp.text))
@@ -110,21 +111,21 @@ def check_emoji_reactions(  args,
 
     if args.emoji == "*":
         posters = all_users[all_users["Emojis_Response"] != ""]
-        print(f"The following {len(posters)} users HAVE posted at least 1 emoji on post {args.post_id}")
+        print(f"The following {len(posters)} users HAVE posted at least 1 emoji on post {post_id}")
         pprint.pprint(posters[['username', 'first_name', 'last_name']])
     else:
         posters = all_users[all_users[f"Responded with {args.emoji}?"] == "Yes"]
-        print(f"The following {len(posters)} users HAVE posted the '{args.emoji}' emoji on post {args.post_id}")
+        print(f"The following {len(posters)} users HAVE posted the '{args.emoji}' emoji on post {post_id}")
         pprint.pprint(posters[['username', 'first_name', 'last_name']])
 
     if args.emoji == "*":
         non_posters = all_users[all_users["Emojis_Response"] == ""]
-        print(f"The following {len(non_posters)} users have NOT posted any emoji on post {args.post_id}")
+        print(f"The following {len(non_posters)} users have NOT posted any emoji on post {post_id}")
         pprint.pprint(non_posters[['username', 'first_name', 'last_name']])
 
     else:
         non_posters = all_users[all_users[f"Responded with {args.emoji}?"] == "No"]
-        print(f"The following {len(non_posters)} users have NOT posted the '{args.emoji}' emoji on post {args.post_id}")
+        print(f"The following {len(non_posters)} users have NOT posted the '{args.emoji}' emoji on post {post_id}")
         pprint.pprint(non_posters[['username', 'first_name', 'last_name']])
 
     spreadsheet_updates = {}
@@ -135,7 +136,7 @@ def check_emoji_reactions(  args,
     #pprint.pprint(spreadsheet_updates)
 
     # Get the date of the post of interest
-    post_url = f"{url}/api/v4/posts/{args.post_id}"
+    post_url = f"{url}/api/v4/posts/{post_id}"
     resp = requests.get(post_url, headers=headers)
     if resp.status_code < 200 or resp.status_code > 299:
         pprint.pprint(json.loads(resp.text))
@@ -147,6 +148,7 @@ def check_emoji_reactions(  args,
     post_date = datetime.fromtimestamp(post_info['create_at'].values[0]//1000)
     post_date = post_date.strftime("%Y-%m-%d")
 
+    post_url = f"{url}{team_name}/pl/{post_id}"
 
     service = quickstart2.get_service()
     sheet = service.spreadsheets()
@@ -155,8 +157,8 @@ def check_emoji_reactions(  args,
                                   args.tab_name,
                                   spreadsheet_updates,
                                   post_date,
-                                  args.post_id)
-    return
+                                  post_url)
+
 
     # Send provided DM
     for recipients, message in [[posters, message_to_responders], [non_posters, message_to_non_responders]]:
@@ -172,7 +174,7 @@ def check_emoji_reactions(  args,
             base_url_list = [url] * len(recipients)
             bot_id_list = [bot_id] * len(recipients)
             bot_name_list = [bot_name] * len(recipients)
-            message_list = [message + f" (Post: {url}{team_name}/pl/{args.post_id})"] * len(recipients)
+            message_list = [message + f" (Post: {url}{team_name}/pl/{post_id})"] * len(recipients)
 
             print(f"Live Run: Sending message: '{message_list[0]}'")
             print(f"To {len(recipients)} recipients:")
@@ -378,7 +380,8 @@ def main(args):
                                             team_name,
                                             message_to_non_responders,
                                             message_to_responders,
-                                            sheet_id
+                                            sheet_id,
+                                            args.post_id
                                         )
 
     # TODO This function below should be in a separate script
