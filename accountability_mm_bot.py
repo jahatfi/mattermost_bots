@@ -78,17 +78,17 @@ def search_hashtags(args, url, headers, team_id, channels, pages):
     pprint.pprint(results)
     return(results)
 #==============================================================================
-def send_accountability_message(args,
-                                url,
-                                headers,
-                                all_users,
-                                bot_id,
-                                bot_name,
-                                team_name,
-                                message_to_non_responders,
-                                message_to_responders,
-                                sheet_id
-                                ):
+def check_emoji_reactions(  args,
+                            url,
+                            headers,
+                            all_users,
+                            bot_id,
+                            bot_name,
+                            team_name,
+                            message_to_non_responders,
+                            message_to_responders,
+                            sheet_id
+                            ):
 
     reaction_url = f"{url}/api/v4/posts/{args.post_id}/reactions"
     resp = requests.get(reaction_url, headers=headers)
@@ -128,11 +128,25 @@ def send_accountability_message(args,
         pprint.pprint(non_posters[['username', 'first_name', 'last_name']])
 
     spreadsheet_updates = {}
-    for callsign in posters['username'].values:
-        spreadsheet_updates[callsign] = "P"
-    for callsign in non_posters['username'].values:
-        spreadsheet_updates[callsign] = "A"
+    for username in posters['username'].values:
+        spreadsheet_updates[username] = "P"
+    for username in non_posters['username'].values:
+        spreadsheet_updates[username] = "A"
     #pprint.pprint(spreadsheet_updates)
+
+    # Get the date of the post of interest
+    post_url = f"{url}/api/v4/posts/{args.post_id}"
+    resp = requests.get(post_url, headers=headers)
+    if resp.status_code < 200 or resp.status_code > 299:
+        pprint.pprint(json.loads(resp.text))
+        print(f"URL was '{reaction_url}'.  See the problem?")
+        sys.exit(-1)
+    post_info = pd.DataFrame(json.loads(resp.text))
+    #print("Post info:")
+    #print(post_info.T)
+    post_date = datetime.fromtimestamp(post_info['create_at'].values[0]//1000)
+    post_date = post_date.strftime("%Y-%m-%d")
+
 
     service = quickstart2.get_service()
     sheet = service.spreadsheets()
@@ -140,7 +154,7 @@ def send_accountability_message(args,
                                   sheet_id,
                                   args.tab_name,
                                   spreadsheet_updates,
-                                  str(datetime.today().date()),
+                                  post_date,
                                   args.post_id)
     return
 
@@ -263,6 +277,7 @@ def main(args):
     # Get this bot info
     this_bot = utils.get_bot_info(url, bot_id, headers)
     if not this_bot.empty:
+        print("Bot metadata:")
         pprint.pprint(this_bot)
     else:
         print(f"It appears that the bot with ID {bot_id} does not exist on {url}")
@@ -306,7 +321,8 @@ def main(args):
         status = status.rename(columns = {'user_id':'id'})
 
         all_users = all_users.merge(status[['id', 'status', 'manual']], on='id', how="left")
-    pprint.pprint(all_users)
+        all_users.sort_values("last_name", inplace=True)
+    #pprint.pprint(all_users)
 
     if not args.post_id and not args.keyword:
         print("Not post ID or keyword provided. Returning.")
@@ -353,17 +369,17 @@ def main(args):
     """
     # If a post id is provided,
     if args.post_id:
-        all_users = send_accountability_message(args,
-                                                url,
-                                                headers,
-                                                all_users,
-                                                bot_id,
-                                                bot_name,
-                                                team_name,
-                                                message_to_non_responders,
-                                                message_to_responders,
-                                                sheet_id
-                                                )
+        all_users = check_emoji_reactions(  args,
+                                            url,
+                                            headers,
+                                            all_users,
+                                            bot_id,
+                                            bot_name,
+                                            team_name,
+                                            message_to_non_responders,
+                                            message_to_responders,
+                                            sheet_id
+                                        )
 
     # TODO This function below should be in a separate script
     # as it's really a different feature

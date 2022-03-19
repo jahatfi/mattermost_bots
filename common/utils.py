@@ -205,6 +205,7 @@ def get_users(users_url, headers, usernames, channels, results_per_page):
     all_users.drop(cols_to_drop, axis=1, inplace=True)
     if usernames:
         rows_to_keep = all_users['username'].isin(usernames)
+        rows_to_keep += all_users['nickname'].isin(usernames)
         all_users = all_users[rows_to_keep]
     #pprint.pprint(all_users)
     all_users.drop_duplicates(inplace=True)
@@ -281,8 +282,8 @@ def search_keyword(args, url, headers, team_id, channels):
 def read_usernames(username_file):
 
     if username_file:
-        with open(username_file, 'r') as callsign_file:
-            usernames = callsign_file.readlines()
+        with open(username_file, 'r') as username_file:
+            usernames = username_file.readlines()
             usernames = [c.lower().strip() for c in usernames]
     else:
         usernames = []

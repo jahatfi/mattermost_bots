@@ -71,18 +71,18 @@ def get_first_free_col(sheet, sheet_id, tab_name):
     print(first_free_col)
     return first_free_col
 #===============================================================================
-def returned_ordered_callsigns(sheet, sheet_id, tab_name):
+def returned_ordered_usernames(sheet, sheet_id, tab_name):
     """
-    Return the ordered list of callsigns in the callsign column,
+    Return the ordered list of usernames in the username column,
     including blanks if there are any.  This is important, as the order
     might change due to users sorting it, adding new names,
     removing old ones, etc.
     """
 
-    # First find the "Callsign" column
+    # First find the "Username" column
     range = tab_name + "!A2:2"
-    key = "Callsign"
-    ordered_callsigns = []
+    key = "Username"
+    ordered_usernames = []
     # Call the Sheets API
     result = sheet.values().get(spreadsheetId=sheet_id,
                                 range=range).execute()
@@ -95,7 +95,7 @@ def returned_ordered_callsigns(sheet, sheet_id, tab_name):
     # Add one b/c Google sheets index starting at 1
     col_num = values.index(key)+1
 
-    # Found the column with callsigns, grab the whole column minues the header
+    # Found the column with usernames, grab the whole column minues the header
     col_name = colnum_string(col_num)
     range = tab_name + "!" + col_name + "1:" + col_name
 
@@ -104,14 +104,14 @@ def returned_ordered_callsigns(sheet, sheet_id, tab_name):
 
     values = result.get('values', [])
 
-    # Create a dictionary mapping callsign to row number
-    ordered_callsigns = [""]*len(values)
+    # Create a dictionary mapping username to row number
+    ordered_usernames = [""]*len(values)
     for value_index, value in enumerate(values):
-        # Value index is the row number, value is the callsign
+        # Value index is the row number, value is the username
         # Some cells might be blank
         if value:
-            ordered_callsigns[value_index] = value[0]
-    return ordered_callsigns
+            ordered_usernames[value_index] = value[0]
+    return ordered_usernames
 
 #===============================================================================
 def update_attendance(sheet, # Type: googleapiclient.discovery.Resource'
@@ -137,19 +137,19 @@ def update_attendance(sheet, # Type: googleapiclient.discovery.Resource'
 
     #print(attendence)
     col_to_insert = get_first_free_col(sheet, sheet_id, tab_name)
-    ordered_callsigns = returned_ordered_callsigns(sheet, sheet_id, tab_name)
+    ordered_usernames = returned_ordered_usernames(sheet, sheet_id, tab_name)
     # Sort the name to row mapping in numerical order
-    #pprint.pprint(ordered_callsigns)
+    #pprint.pprint(ordered_usernames)
     range = tab_name + "!" + col_to_insert + "1:" + col_to_insert
     #print("Print it all")
     updates = [[date], [event_name]]
-    for callsign_index, callsign in enumerate(ordered_callsigns[2:]):
-        if callsign in attendence:
-            entry = [attendence[callsign]]
+    for username_index, username in enumerate(ordered_usernames[2:]):
+        if username in attendence:
+            entry = [attendence[username]]
         else:
             entry = [""]
         updates.append(entry)
-        print(f"{callsign_index+2} {callsign} '{entry}'")
+        print(f"{username_index+2} {username} '{entry}'")
 
     #pprint.pprint(updates)
     body = {}
@@ -202,8 +202,8 @@ def main(args):
 
     #get_first_free_row(sheet, args.sheet_id, args.tab_name)
     #get_first_free_col(sheet, args.sheet_id, args.tab_name)
-    #print("Getting callsign mapping")
-    #mapping = returned_ordered_callsigns(sheet, args.sheet_id, args.tab_name)
+    #print("Getting username mapping")
+    #mapping = returned_ordered_usernames(sheet, args.sheet_id, args.tab_name)
     #pprint.pprint(mapping)
 
     update_attendance(sheet, args.sheet_id, args.tab_name, {}, "3/17/2022", "PT")

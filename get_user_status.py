@@ -88,8 +88,8 @@ def main(args):
         filter_on_channels = True
 
     if args.username_file:
-        with open(args.username_file, 'r') as callsign_file:
-            usernames = callsign_file.readlines()
+        with open(args.username_file, 'r') as username_file:
+            usernames = username_file.readlines()
             usernames = [c.lower().strip() for c in usernames]
     else:
         usernames = []
@@ -115,7 +115,7 @@ def main(args):
     #all_users['Date'] = str(datetime.now())
     all_users.sort_values(args.sort_on, inplace=True)
 
-    pprint.pprint(all_users)
+    #pprint.pprint(all_users)
 
     if args.log_file:
         need_headers = False
@@ -131,6 +131,8 @@ def main(args):
                                         header=need_headers,
                                         errors="ignore")
         print(f"Appended data to {args.log_file}")
+
+    return all_users
 # ==============================================================================
 if __name__ == "__main__":
     valid_sort_criteria = ["nickname", "first_name", "last_name", "emoji", "username"]
