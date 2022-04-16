@@ -3,14 +3,12 @@ import argparse
 from common import argparse_helpers
 
 # ==============================================================================
-def process_reactions(args, reactions, users_url, headers, all_users):
+def process_reactions(args, reactions, all_users):
     """
     Update the Emoji column of the Pandas Dataframe "all_users" based on the
     provided MatterMost reactions to the specified post.
     """
 
-    all_responses = {}
-    urls = []
     #pprint.pprint(reactions)
     for reaction in reactions:
         if args.emoji == "*":
@@ -39,7 +37,7 @@ def send_dm_to_all_in_df(   user_id,
     #return dm_info
 #==============================================================================
 def search_hashtags(args, url, headers, team_id, channels, pages):
-    reaction_url = f"{url}api/v4/teams/{team_id}/posts/search"
+    search_url = f"{url}api/v4/teams/{team_id}/posts/search"
     results = pd.DataFrame()
     data = {
         #"is_or_search": False,
@@ -58,7 +56,7 @@ def search_hashtags(args, url, headers, team_id, channels, pages):
                                 )
             if resp.status_code < 200 or resp.status_code > 299:
                 print("Error")
-                print(f"URL was '{reaction_url}'.  See the problem?")
+                print(f"URL was '{search_url}'.  See the problem?")
                 print(resp.text)
 
             else:
@@ -99,7 +97,7 @@ def check_emoji_reactions(  args,
         sys.exit(-1)
     reactions = json.loads(resp.text)
 
-    all_users = process_reactions(args, reactions, reaction_url, headers, all_users)
+    all_users = process_reactions(args, reactions, all_users)
     all_users.sort_values(args.sort_on, inplace=True)
 
     with open("csv_log.csv", "a+") as csv_log:
@@ -128,11 +126,21 @@ def check_emoji_reactions(  args,
         print(f"The following {len(non_posters)} users have NOT posted the '{args.emoji}' emoji on post {post_id}")
         pprint.pprint(non_posters[['username', 'first_name', 'last_name']])
 
+    on_leave = non_posters[non_posters["emoji"] == "palm_tree"]
+    print(f"The following {len(on_leave)} users are on leave (excluding them from non-response messages):")
+    pprint.pprint(on_leave[['username', 'first_name', 'last_name', 'emoji', 'text']])
+    non_posters = non_posters[non_posters["emoji"] != "palm_tree"]
+
+
     spreadsheet_updates = {}
     for username in posters['username'].values:
         spreadsheet_updates[username] = "P"
     for username in non_posters['username'].values:
-        spreadsheet_updates[username] = "A"
+        if username in on_leave['username'].values:
+            spreadsheet_updates[username] = "L"
+        else:
+            spreadsheet_updates[username] = "A"
+
     #pprint.pprint(spreadsheet_updates)
 
     # Get the date of the post of interest
@@ -150,6 +158,8 @@ def check_emoji_reactions(  args,
 
     post_url = f"{url}{team_name}/pl/{post_id}"
 
+    # Log attendence in Google Sheet:
+    """
     service = quickstart2.get_service()
     sheet = service.spreadsheets()
     quickstart2.update_attendance(sheet,
@@ -158,10 +168,11 @@ def check_emoji_reactions(  args,
                                   spreadsheet_updates,
                                   post_date,
                                   post_url)
+    """
 
-
-    # Send provided DM
-    for recipients, message in [[posters, message_to_responders], [non_posters, message_to_non_responders]]:
+    # Send provided DM(s)
+    recp_mesg = [[posters, message_to_responders], [non_posters, message_to_non_responders]]
+    for recipients, message in recp_mesg:
         if not message or 0 ==  len(recipients):
             continue
 
@@ -224,12 +235,16 @@ def main(args):
     elif len(creds) == 5:
         url, team_id, token, bot_id, sheet_id  = creds
 
+    # Strip any quotes
+    url = url.strip('"').strip("'")
+    team_id = team_id.strip('"').strip("'")
+    token = token.strip('"').strip("'")
     channels = []
 
     # Print current date + time for log review purposes
     print( str(datetime.now()).center(80, "=") )
 
-    # Next the message files
+    # Next the message file to those who DID respond
     if args.message_to_responders:
         try:
             with open(args.message_to_responders, "r") as message_file:
@@ -238,7 +253,7 @@ def main(args):
             print(f"Can't find {args.message_to_responders}")
             sys.exit(1)
 
-    # Next message file
+    # Next message file to those who did NOT respond
     if args.message_to_non_responders:
         try:
             with open(args.message_to_non_responders, "r") as message_file:
@@ -247,12 +262,6 @@ def main(args):
             print(f"Can't find {args.message_to_non_responders}")
             sys.exit(1)
 
-    # Strip any quotes
-    url = url.strip('"').strip("'")
-    team_id = team_id.strip('"').strip("'")
-    token = token.strip('"').strip("'")
-
-    search_url = f"{url}api/v4/teams/{team_id}/posts/search"
     headers = {
                 "is_or_search": "true",
                 "time_zone_offset": "0",
@@ -261,10 +270,10 @@ def main(args):
                 "per_page": str(results_per_page),
                 "Authorization" : f"Bearer {token}"
             }
+
     # Get this team name
     team_url = f"{url}api/v4/teams/{team_id}"
     #print(f"team url: {team_url}")
-
     team_info = requests.get(team_url, headers=headers)
     if team_info.status_code == 200:
         team_info = json.loads(team_info.text)
@@ -285,10 +294,12 @@ def main(args):
         print(f"It appears that the bot with ID {bot_id} does not exist on {url}")
         sys.exit(-1)
 
+    # Read the file containing the post ID
     if os.path.exists(args.post_id):
         with open(args.post_id, "r") as post_id_file:
             args.post_id = post_id_file.readline().strip()
 
+    # Validate provided channels
     if args.channels:
         channels = pd.DataFrame()
         channel_url = url+f"api/v4/teams/{team_id}/channels/search"
@@ -310,47 +321,48 @@ def main(args):
         pprint.pprint(channels)
         filter_on_channels = True
 
+    # If no user_name file is provided this returns an empty list
     usernames = utils.read_usernames(args.username_file)
 
-
+    # Return a dataframe of all users - utils.get_users()
     users_url = url + "api/v4/users"
     all_users = utils.get_users(users_url, headers, usernames, channels, results_per_page)
     user_status_url = url + "api/v4/users/status/ids"
     ids = all_users['id'].values.tolist()
     resp = requests.post(user_status_url, headers=headers, data=json.dumps(ids))
-    if resp.status_code >= 200 and resp.status_code <= 399:
-        status = pd.DataFrame(json.loads(resp.text))
-        status = status.rename(columns = {'user_id':'id'})
+    all_users.sort_values("last_name", inplace=True)
+    pprint.pprint(all_users)
 
-        all_users = all_users.merge(status[['id', 'status', 'manual']], on='id', how="left")
-        all_users.sort_values("last_name", inplace=True)
-    #pprint.pprint(all_users)
-
+    # At this point, if no post ID was provided, there's not much else to do.
     if not args.post_id and not args.keyword:
         print("Not post ID or keyword provided. Returning.")
         return
     if args.post_id:
         print(f"Post ID: {args.post_id}")
 
+    # A post ID was provided, so create a new column for all_users and
+    # give it a default value
     if args.emoji == "*":
         all_users["Emojis_Response"] = ""
     else:
         all_users[f"Responded with {args.emoji}?"] = "No"
 
-    delay_seconds = utils.return_computed_delay(args.delay)
-    if args.live_run:
-        sys.stdout.flush()
-        time.sleep(delay_seconds)
+    # Compute sleep time, if any
+    if args.delay:
+        delay_seconds = utils.return_computed_delay(args.delay)
+        if args.live_run:
+            sys.stdout.flush()
+            time.sleep(delay_seconds)
 
     # Change the bot name/id if applicable AFTER the sleep, in case
     # another bot changed it while it was sleeping
     if args.new_bot_name:
         if not utils.rename_bot(  url,
-                            this_bot['username'].values[0],
-                            this_bot['user_id'].values[0],
-                            args.new_bot_name,
-                            headers):
-            print("Exiting")
+                                  this_bot['username'].values[0],
+                                  this_bot['user_id'].values[0],
+                                  args.new_bot_name,
+                                  headers):
+            print("Failed to rename bot; exiting")
             sys.exit(1)
         else:
             print(f"Updated botname to {args.new_bot_name}")

@@ -158,6 +158,26 @@ def get_channels(base_url, headers):
         pprint.pprint(all_channels)
         return all_channels
 # ==============================================================================
+def get_emoji(row):
+    if isinstance(row.loc['props'], dict):
+        try:
+            x = json.loads(row[6]['customStatus'])
+            if "emoji" in x:
+                return x['emoji']
+        except (json.decoder.JSONDecodeError, KeyError) as e:
+            return ""
+    return ""
+# ==============================================================================
+def get_text(row):
+    if isinstance(row.loc['props'], dict):
+        try:
+            x = json.loads(row[6]['customStatus'])
+            if "text" in x:
+                return x['text']
+        except (json.decoder.JSONDecodeError, KeyError) as e:
+            return ""
+    return ""
+# ==============================================================================
 def get_users(users_url, headers, usernames, channels, results_per_page):
     """
     Returns a Pandas DataFrame of all users on this server, but with only
@@ -168,7 +188,7 @@ def get_users(users_url, headers, usernames, channels, results_per_page):
     Otherwise, if only a list of usernames OR channels is provided,
     return those users.
     """
-    cols_to_keep = ['id', 'username', 'email', 'first_name', 'nickname', 'last_name', 'status']
+    cols_to_keep = ['id', 'username', 'email', 'first_name', 'props', 'nickname', 'last_name', 'status']
     page = 0
     all_users = []
 
@@ -200,6 +220,7 @@ def get_users(users_url, headers, usernames, channels, results_per_page):
 
 
     all_users = pd.DataFrame(all_users)
+
     cols_to_drop = all_users.columns
     cols_to_drop = list(set(cols_to_drop) - set(cols_to_keep))
     all_users.drop(cols_to_drop, axis=1, inplace=True)
@@ -207,7 +228,12 @@ def get_users(users_url, headers, usernames, channels, results_per_page):
         rows_to_keep = all_users['username'].isin(usernames)
         rows_to_keep += all_users['nickname'].isin(usernames)
         all_users = all_users[rows_to_keep]
+
+    all_users['emoji'] = all_users.apply(get_emoji, axis=1)
+    all_users['text'] = all_users.apply(get_text, axis=1)
+
     #pprint.pprint(all_users)
+    all_users.drop(["props"], axis=1, inplace=True)
     all_users.drop_duplicates(inplace=True)
 
     return all_users
