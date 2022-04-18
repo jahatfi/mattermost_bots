@@ -156,7 +156,7 @@ if __name__ == "__main__":
                         required=False,
                         default="",
                         type=str,
-                        help="Delay until date/time in format: MM/DD/YYYY: HH:MM"
+                        help="Delay until date/time in format: MM/DD/YYYY HH:MM"
                         )
     parser.add_argument('--new-bot-name',
                         '-b',
