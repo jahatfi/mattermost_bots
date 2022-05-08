@@ -104,8 +104,8 @@ def check_emoji_reactions(  args,
         csv_log.write
         for row in all_users.itertuples():
             # Date, Tasker, Name, response emojis, comments
-            #print(row)
-            csv_log.write(f"{datetime.today().date()},{args.id},{row.username},{row.Emojis_Response},,\n")
+            # print(row)
+            csv_log.write(f"{datetime.today().date()},{args.id},{row.username},{row.emoji},,\n")
 
     if args.emoji == "*":
         posters = all_users[all_users["Emojis_Response"] != ""]
@@ -132,7 +132,7 @@ def check_emoji_reactions(  args,
     print(f"The following {len(on_leave)} users are on leave:")
     pprint.pprint(on_leave[['username', 'first_name', 'last_name', 'emoji', 'text']])
     if args.message_non_responders_on_leave:
-        print("Messaging them anyway.")
+        print("Including them anyway in list of recipients.")
     else:
         print("Excluding them in non-response message")
         non_posters = non_posters[~leave_indices]
