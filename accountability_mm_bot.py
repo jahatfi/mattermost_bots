@@ -126,11 +126,16 @@ def check_emoji_reactions(  args,
         print(f"The following {len(non_posters)} users have NOT posted the '{args.emoji}' emoji on post {post_id}")
         pprint.pprint(non_posters[['username', 'first_name', 'last_name']])
 
-    on_leave = non_posters[non_posters["emoji"] == "palm_tree"]
-    print(f"The following {len(on_leave)} users are on leave (excluding them from non-response messages):")
-    pprint.pprint(on_leave[['username', 'first_name', 'last_name', 'emoji', 'text']])
-    non_posters = non_posters[non_posters["emoji"] != "palm_tree"]
 
+    leave_indices = non_posters["emoji"].str.contains('|'.join(['palm', 'baby']))
+    on_leave = non_posters[leave_indices]
+    print(f"The following {len(on_leave)} users are on leave:")
+    pprint.pprint(on_leave[['username', 'first_name', 'last_name', 'emoji', 'text']])
+    if args.message_non_responders_on_leave:
+        print("Messaging them anyway.")
+    else:
+        print("Excluding them in non-response message")
+        non_posters = non_posters[~leave_indices]
 
     spreadsheet_updates = {}
     for username in posters['username'].values:
@@ -357,11 +362,11 @@ def main(args):
     # Change the bot name/id if applicable AFTER the sleep, in case
     # another bot changed it while it was sleeping
     if args.new_bot_name:
-        if not utils.rename_bot(  url,
-                                  this_bot['username'].values[0],
-                                  this_bot['user_id'].values[0],
-                                  args.new_bot_name,
-                                  headers):
+        if not utils.rename_bot(url,
+                                this_bot['username'].values[0],
+                                this_bot['user_id'].values[0],
+                                args.new_bot_name,
+                                headers):
             print("Failed to rename bot; exiting")
             sys.exit(1)
         else:
@@ -480,6 +485,12 @@ if __name__ == "__main__":
                         default="",
                         type=str,
                         help="File with message (e.g. plain text or markdown) to DM users who did NOT post one of the specified emojis"
+                        )
+    parser.add_argument('--message-non-responders-on-leave',
+                        required=False,
+                        default=False,
+                        type=bool,
+                        help="Send Non-response message (see -n option) to users even if they ARE on leave."
                         )
     parser.add_argument('--message-to-responders',
                         '-m',
