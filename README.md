@@ -114,27 +114,27 @@ optional arguments:
    and create a new accountability task for that post.  In other words, non-bot
    owners could create new accountable tasks. It needs a little more
    work and testing.
-   ```
-   python read_mentions.py -h
+```
+python read_mentions.py -h
 usage: read_mentions.py [-h] --authentication-info AUTHENTICATION_INFO --channel CHANNEL [--keyword KEYWORD] [--live-run LIVE_RUN]
-                        [--message-to-non-responders MESSAGE_TO_NON_RESPONDERS] [--message-to-responders MESSAGE_TO_RESPONDERS] [--username-file USERNAME_FILE]
+                    [--message-to-non-responders MESSAGE_TO_NON_RESPONDERS] [--message-to-responders MESSAGE_TO_RESPONDERS] [--username-file USERNAME_FILE]
 
 optional arguments:
-  -h, --help            show this help message and exit
-  --authentication-info AUTHENTICATION_INFO, -a AUTHENTICATION_INFO
-                        File with (one per line):(1 server url, (2 team id, (3 auth token, (4 bot name
-  --channel CHANNEL, -c CHANNEL
-                        Channel name(s) from which to get users: -c channel1 channel2. If provided with a list of usernames, this script will pull pull the
-                        intersection of users found in the list and those found in both channels.
-  --keyword KEYWORD, -k KEYWORD
-                        Keyword to search channel
-  --live-run LIVE_RUN, -l LIVE_RUN
-                        Live (True) or dry (False:default) run
-  --message-to-non-responders MESSAGE_TO_NON_RESPONDERS, -n MESSAGE_TO_NON_RESPONDERS
-                        File with message (e.g. plain text or markdown) to DM users who did NOT post one of the specified emojis
-  --message-to-responders MESSAGE_TO_RESPONDERS, -m MESSAGE_TO_RESPONDERS
-                        File with message (e.g. plain text or markdown) to DM users who DID post one of the specified emojis
-  --username-file USERNAME_FILE, -u USERNAME_FILE
-                        File with all mattermost usernames to report on.If provided with a list of channels, will pull intersection of users from each
+-h, --help            show this help message and exit
+--authentication-info AUTHENTICATION_INFO, -a AUTHENTICATION_INFO
+                      File with (one per line):(1 server url, (2 team id, (3 auth token, (4 bot name
+--channel CHANNEL, -c CHANNEL
+                      Channel name(s) from which to get users: -c channel1 channel2. If provided with a list of usernames, this script will pull pull the
+                      intersection of users found in the list and those found in both channels.
+--keyword KEYWORD, -k KEYWORD
+                      Keyword to search channel
+--live-run LIVE_RUN, -l LIVE_RUN
+                      Live (True) or dry (False:default) run
+--message-to-non-responders MESSAGE_TO_NON_RESPONDERS, -n MESSAGE_TO_NON_RESPONDERS
+                      File with message (e.g. plain text or markdown) to DM users who did NOT post one of the specified emojis
+--message-to-responders MESSAGE_TO_RESPONDERS, -m MESSAGE_TO_RESPONDERS
+                      File with message (e.g. plain text or markdown) to DM users who DID post one of the specified emojis
+--username-file USERNAME_FILE, -u USERNAME_FILE
+                      File with all mattermost usernames to report on.If provided with a list of channels, will pull intersection of users from each
 
-   ```
+```
